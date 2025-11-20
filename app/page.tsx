@@ -230,6 +230,16 @@ export default function Home() {
         </div>
       </motion.div>
 
+      {/* Recent MCP Servers Section */}
+      <div className="container mx-auto px-6 py-16">
+        <RecentMcpServers />
+      </div>
+
+      {/* Categories Section */}
+      <div className="container mx-auto px-6 py-16">
+        <Categories />
+      </div>
+
       {/* Architecture Visualization Section */}
       <motion.div
         initial="hidden"
@@ -248,17 +258,7 @@ export default function Home() {
         </motion.div>
           <McpArchitecture className="max-w-6xl w-full" />
       </motion.div>
-
-      {/* Categories Section */}
-      <div className="container mx-auto px-6 py-16">
-        <Categories />
-      </div>
-
-      {/* Recent MCP Servers Section */}
-      <div className="container mx-auto px-6 py-16">
-        <RecentMcpServers />
-      </div>
-
+      
       {/* Feature Highlights Section */}
       <div id="features" className="relative py-28 bg-gradient-to-b from-background via-muted/20 to-background overflow-hidden">
         {/* Gradient blobs */}

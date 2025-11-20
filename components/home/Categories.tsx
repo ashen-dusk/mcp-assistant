@@ -14,10 +14,21 @@ const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
 
 function CategoryItemSkeleton() {
   return (
-    <div className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border bg-card">
-      <Skeleton className="h-16 w-16 rounded-full" />
-      <Skeleton className="h-5 w-24" />
-      <Skeleton className="h-4 w-32" />
+    <div className="flex flex-col items-center gap-3 p-6 rounded-xl">
+      <Skeleton className="h-12 w-12 rounded-full" />
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-3 w-28" />
+    </div>
+  );
+}
+
+function HeaderSkeleton() {
+  return (
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <Skeleton className="h-6 w-48" />
+      </div>
+      <Skeleton className="h-4 w-16" />
     </div>
   );
 }
@@ -45,10 +56,11 @@ export default function Categories() {
     return null;
   }
 
-  // Show only loading skeletons (no heading) while loading
+  // Show loading skeletons with header while loading
   if (loading && categories.length === 0) {
     return (
       <div className="w-full">
+        <HeaderSkeleton />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <CategoryItemSkeleton />
           <CategoryItemSkeleton />
@@ -88,10 +100,7 @@ export default function Categories() {
         {categories.map((category) => (
           <Link key={category.id} href={`/mcp?category=${category.slug}`}>
             <div
-              className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-primary/50 transition-all duration-300 cursor-pointer hover:shadow-lg hover:scale-105"
-              style={{
-                borderColor: category.color ? `${category.color}20` : undefined,
-              }}
+              className="group flex flex-col items-center gap-3 p-6 rounded-xl hover:bg-accent/50 transition-all duration-300 cursor-pointer hover:shadow-lg hover:scale-105"
             >
               {/* Icon Container */}
               <div
