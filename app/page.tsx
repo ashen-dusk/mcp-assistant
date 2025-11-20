@@ -238,11 +238,11 @@ export default function Home() {
         variants={container}
         className="container mx-auto px-6 py-10"
       >
-        <motion.div variants={fadeInUp} className="text-center mb-12">
-          <h2 className="text-xl md:text-2xl font-bold mb-6">
+        <motion.div variants={fadeInUp} className="text-center mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6">
             How It Works
           </h2>
-          <p className="text-muted-foreground text-base md:text-lg max-w-3xl mx-auto leading-relaxed">
+          <p className="text-muted-foreground text-base sm:text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
             A seamless flow from your interface to AI-powered agents with dynamic MCP server connections
           </p>
         </motion.div>

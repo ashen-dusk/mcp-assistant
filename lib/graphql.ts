@@ -74,6 +74,8 @@ export const RECENT_MCP_SERVERS_QUERY = `
         node {
           id
           name
+          url
+          description
           transport
           createdAt
           updatedAt

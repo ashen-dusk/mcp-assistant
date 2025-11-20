@@ -56,7 +56,7 @@ export default function McpArchitecture({
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">You</div>
             <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
-              Interact through browser interface
+              Interact through MCP Assistant
             </p>
           </div>
         </div>
@@ -69,7 +69,7 @@ export default function McpArchitecture({
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">AG-UI</div>
             <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
-              Agent UI framework for requests
+              AG-UI Protocol connects user interface to AI Assistant
             </p>
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function McpArchitecture({
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">MCP</div>
             <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
-              Model Context Protocol manages connections
+              Model Context Protocol interfaces AI with external capabilities
             </p>
           </div>
         </div>
