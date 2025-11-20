@@ -217,13 +217,16 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
-                  <Card className="h-full hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                  <Card
+                    className="h-full hover:shadow-md transition-shadow duration-200 overflow-hidden cursor-pointer"
+                    onClick={() => server.connectionStatus === 'CONNECTED' && handleCallTool(tool)}
+                  >
                     <CardHeader>
                       <div className="flex flex-col gap-2 min-w-0">
                         <div className="flex items-center gap-2 min-w-0 w-full">
                           <Wrench className="h-4 w-4 text-primary flex-shrink-0" />
-                          <CardTitle 
-                            className="text-sm text-truncate min-w-0 flex-1" 
+                          <CardTitle
+                            className="text-sm text-truncate min-w-0 flex-1"
                             title={tool.name}
                           >
                             {tool.name}
@@ -239,51 +242,8 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                         {tool.description}
                       </p>
 
-                      <div className="space-y-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleCallTool(tool)}
-                          className="w-full"
-                          disabled={server.connectionStatus !== 'CONNECTED'}
-                        >
-                          <Play className="h-3 w-3 mr-2" />
-                          Call Tool
-                        </Button>
-
-                        {schema && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleToolExpansion(tool.name)}
-                            className="w-full justify-start p-0 h-auto"
-                          >
-                            {expandedTool === tool.name ? (
-                              <ChevronDown className="h-3 w-3 mr-1" />
-                            ) : (
-                              <ChevronRight className="h-3 w-3 mr-1" />
-                            )}
-                            <span className="text-xs">View Schema</span>
-                          </Button>
-                        )}
-
-                        <AnimatePresence>
-                          {expandedTool === tool.name && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="bg-muted rounded-md p-3">
-                                <pre className="text-xs text-muted-foreground overflow-x-auto">
-                                  {JSON.stringify(schema, null, 2)}
-                                </pre>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                      {/* Call Tool button removed - card is now clickable */}
+                      {/* Schema view removed - already shown in ToolCallDialog */}
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -310,7 +270,10 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
-                  <Card className="hover:shadow-md transition-shadow duration-200">
+                  <Card
+                    className="hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                    onClick={() => server.connectionStatus === 'CONNECTED' && handleCallTool(tool)}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -325,52 +288,10 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                             {tool.description}
                           </p>
 
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            <Button
-                              size="sm"
-                              onClick={() => handleCallTool(tool)}
-                              disabled={server.connectionStatus !== 'CONNECTED'}
-                            >
-                              <Play className="h-3 w-3 mr-1" />
-                              Call Tool
-                            </Button>
-
-                            {schema && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleToolExpansion(tool.name)}
-                                className="p-0 h-auto"
-                              >
-                                {expandedTool === tool.name ? (
-                                  <ChevronDown className="h-3 w-3 mr-1" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3 mr-1" />
-                                )}
-                                <span className="text-xs">View Schema</span>
-                              </Button>
-                            )}
-                          </div>
+                          {/* Call Tool button removed - card is now clickable */}
+                          {/* Schema view removed - already shown in ToolCallDialog */}
                         </div>
                       </div>
-
-                      <AnimatePresence>
-                        {expandedTool === tool.name && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden mt-3"
-                          >
-                            <div className="bg-muted rounded-md p-3 max-w-full overflow-x-auto">
-                              <pre className="text-xs text-muted-foreground whitespace-pre min-w-max">
-                                {JSON.stringify(schema, null, 2)}
-                              </pre>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
                     </CardContent>
                   </Card>
                 </motion.div>

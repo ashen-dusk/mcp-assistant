@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ToolInfo } from "@/types/mcp";
 import { toast } from "react-hot-toast";
 import { AlertCircle, CheckCircle, Loader } from "lucide-react";
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 interface ToolCallDialogProps {
   isOpen: boolean;
@@ -25,6 +27,7 @@ export default function ToolCallDialog({
   const [inputJson, setInputJson] = useState("{}");
   const [result, setResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { theme } = useTheme();
 
   const parseSchema = (schema: unknown) => {
     if (typeof schema === 'object' && schema !== null) {
@@ -137,7 +140,7 @@ export default function ToolCallDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-minimal">
         <DialogHeader>
           <DialogTitle>Call Tool: {tool.name}</DialogTitle>
           <DialogDescription>
@@ -150,10 +153,19 @@ export default function ToolCallDialog({
           {schema && (
             <div>
               <label className="text-sm font-medium">Schema</label>
-              <div className="bg-muted rounded-md p-3 mt-2 max-h-40 overflow-y-auto">
-                <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+              <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
+                <SyntaxHighlighter
+                  language="json"
+                  style={atomOneDark}
+                  customStyle={{
+                    margin: 0,
+                    padding: '12px',
+                    fontSize: '12px',
+                    borderRadius: '6px'
+                  }}
+                >
                   {JSON.stringify(schema, null, 2)}
-                </pre>
+                </SyntaxHighlighter>
               </div>
               {Object.keys(schemaProperties).length > 0 && (
                 <Button
@@ -171,11 +183,15 @@ export default function ToolCallDialog({
           {/* Input */}
           <div>
             <label className="text-sm font-medium">Tool Input (JSON)</label>
-            <Textarea
+            <textarea
               value={inputJson}
               onChange={(e) => setInputJson(e.target.value)}
               placeholder='{"key": "value"}'
-              className="mt-2 font-mono text-xs h-32"
+              className={`w-full mt-2 font-mono text-xs h-32 p-3 rounded-md border focus:outline-none focus:ring-2 resize-none overflow-x-hidden scrollbar-minimal ${
+                theme === 'dark'
+                  ? 'border-slate-700 bg-slate-950 text-gray-200 placeholder:text-gray-600 focus:ring-slate-600'
+                  : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-500 focus:ring-slate-400'
+              }`}
             />
           </div>
 
@@ -201,13 +217,23 @@ export default function ToolCallDialog({
               )}
 
               {result.result && (
-                <div className="bg-muted rounded-md p-3 mt-2 max-h-48 overflow-y-auto">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Response:</p>
-                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
-                    {typeof result.result === 'string'
-                      ? result.result
-                      : JSON.stringify(result.result, null, 2)}
-                  </pre>
+                <div className="mt-2 rounded-md border border-slate-700 overflow-hidden">
+                  <p className="text-xs font-semibold text-gray-300 px-3 pt-3">Response:</p>
+                  <div className="max-h-48 overflow-y-auto overflow-x-hidden scrollbar-minimal">
+                    <SyntaxHighlighter
+                      language="json"
+                      style={atomOneDark}
+                      customStyle={{
+                        margin: 0,
+                        padding: '12px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {typeof result.result === 'string' && result.result.startsWith('{')
+                        ? result.result
+                        : JSON.stringify(result.result, null, 2)}
+                    </SyntaxHighlighter>
+                  </div>
                 </div>
               )}
             </div>
