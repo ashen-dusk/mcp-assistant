@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Server, Wrench, Activity, PanelLeftClose, PanelLeftOpen, Plus, Edit, Trash2, Loader2, Globe, RefreshCw, Calendar, User as UserIcon, Shield, Copy, Check, Search } from "lucide-react";
+import { Server, Wrench, Activity, PanelLeftClose, PanelLeftOpen, Plus, Edit, Trash2, Loader2, Globe, RefreshCw, Calendar, User as UserIcon, Shield, Copy, Check, Search, Lock, LockOpen } from "lucide-react";
 import { Toaster, toast } from "react-hot-toast";
 import { Session } from "next-auth";
 import ReactMarkdown from "react-markdown";
@@ -592,16 +592,14 @@ export default function McpClientLayout({
                       className="px-4 pb-6 m-0 flex flex-col gap-1"
                     >
                       {(publicLoading || ((debouncedSearch.trim() || activeCategory) && searchLoading)) ? (
-                        [...Array(3)].map((_, i) => (
-                          <Card key={i}>
-                            <CardContent className="p-4">
-                              <div className="space-y-2">
-                                <Skeleton className="h-4 w-3/4" />
-                                <Skeleton className="h-3 w-1/2" />
-                                <Skeleton className="h-3 w-2/3" />
-                              </div>
-                            </CardContent>
-                          </Card>
+                        [...Array(8)].map((_, i) => (
+                          <div key={i} className="px-3 py-3 border-b border-border last:border-b-0">
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-3 w-1/2" />
+                              <Skeleton className="h-3 w-2/3" />
+                            </div>
+                          </div>
                         ))
                       ) : filteredServers && filteredServers.length > 0 ? (
                         <>
@@ -611,46 +609,59 @@ export default function McpClientLayout({
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.2 }}
+                              className={`cursor-pointer transition-all duration-200 px-3 py-3 border-b border-border hover:rounded-lg hover:bg-muted/20 last:border-b-0 ${selectedServer?.name === server.name
+                                ? "bg-primary/5 rounded-lg"
+                                : ""
+                                }`}
+                              onClick={() => setSelectedServer(server)}
                             >
-                              <Card
-                                className={`cursor-pointer transition-all duration-200 hover:shadow-md ${selectedServer?.name === server.name
-                                  ? "ring-2 ring-primary"
-                                  : ""
-                                  }`}
-                                onClick={() => setSelectedServer(server)}
-                              >
-                                <CardContent className="px-3 py-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <div className="flex items-center gap-2">
-                                      <div
-                                        className={`w-3 h-3 rounded-full border-2 shadow-sm transition-all ${server.connectionStatus?.toUpperCase() ===
-                                          "CONNECTED"
-                                          ? "bg-green-500 border-green-600 animate-pulse"
-                                          : server.connectionStatus?.toUpperCase() ===
-                                            "DISCONNECTED"
-                                            ? "bg-yellow-500 border-yellow-600"
-                                            : server.connectionStatus?.toUpperCase() ===
-                                              "FAILED"
-                                              ? "bg-red-500 border-red-600 animate-pulse"
-                                              : "bg-gray-400 border-gray-500"
-                                          }`}
-                                        title={`Status: ${server.connectionStatus || "Unknown"
-                                          }`}
-                                      />
-                                      <Server className="h-3 w-3 text-muted-foreground" />
-                                      <span className="font-medium text-sm">
-                                        {server.name}
-                                      </span>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <div
+                                    className={`w-3 h-3 rounded-full transition-all ${server.connectionStatus?.toUpperCase() ===
+                                      "CONNECTED"
+                                      ? "bg-green-500 animate-pulse"
+                                      : server.connectionStatus?.toUpperCase() ===
+                                        "DISCONNECTED"
+                                        ? "bg-gray-400"
+                                        : server.connectionStatus?.toUpperCase() ===
+                                          "FAILED"
+                                          ? "bg-red-500 animate-pulse"
+                                          : "bg-gray-400"
+                                      }`}
+                                    title={`Status: ${server.connectionStatus || "Unknown"
+                                      }`}
+                                  />
+                                  <Server className="h-3 w-3 text-muted-foreground" />
+                                  <span className="font-medium text-sm truncate">
+                                    {server.name}
+                                  </span>
+                                  {server.requiresOauth2 ? (
+                                    <div title="OAuth2 Required">
+                                      <Shield className="h-3 w-3 text-amber-500 flex-shrink-0" />
                                     </div>
+                                  ) : (
+                                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                      open
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                {server.url && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground truncate">url: {server.url}</p>
                                   </div>
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <span>{server.transport} • {server.tools.length} tools</span>
-                                    {server.requiresOauth2 && (
-                                      <Shield className="h-3 w-3 text-amber-500" />
-                                    )}
-                                  </div>
-                                </CardContent>
-                              </Card>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  transport: {server.transport}
+                                </p>
+                                {server.createdAt && (
+                                  <p className="text-xs text-muted-foreground">
+                                    added on: {new Date(server.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </p>
+                                )}
+                              </div>
                             </motion.div>
                           ))}
 
@@ -683,17 +694,15 @@ export default function McpClientLayout({
                     <TabsContent value="user" className="p-4 m-0 h-full">
                       <div className="space-y-3">
                         {userLoading ? (
-                          <div className="space-y-3">
-                            {[...Array(3)].map((_, i) => (
-                              <Card key={i}>
-                                <CardContent className="p-4">
-                                  <div className="space-y-2">
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-3 w-1/2" />
-                                    <Skeleton className="h-3 w-2/3" />
-                                  </div>
-                                </CardContent>
-                              </Card>
+                          <div className="space-y-0">
+                            {[...Array(8)].map((_, i) => (
+                              <div key={i} className="px-3 py-3 border-b border-border last:border-b-0">
+                                <div className="space-y-2">
+                                  <Skeleton className="h-4 w-3/4" />
+                                  <Skeleton className="h-3 w-1/2" />
+                                  <Skeleton className="h-3 w-2/3" />
+                                </div>
+                              </div>
                             ))}
                           </div>
                         ) : userServers && userServers.length > 0 ? (
@@ -734,56 +743,55 @@ export default function McpClientLayout({
                                   </div>
                                 )}
 
-                                <Card
-                                  className={`cursor-pointer transition-all duration-200 hover:shadow-md ${selectedServer?.name === server.name
-                                    ? "ring-2 ring-primary"
-                                    : ""
+                                <div
+                                  className={`cursor-pointer transition-all duration-200 px-3 py-2 ${selectedServer?.name === server.name
+                                    ? "bg-primary/10 border-l-2 border-primary rounded-lg"
+                                    : "border-l-2 border-transparent hover:bg-muted/50"
                                     }`}
                                   onClick={() => setSelectedServer(server)}
                                 >
-                                  <CardContent className="px-3 pr-12">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 shadow-sm border-2 ${server.connectionStatus?.toUpperCase() ===
-                                            "CONNECTED"
-                                            ? "bg-green-500 hover:bg-green-600 animate-pulse"
+                                  <div className="flex items-center justify-between mb-2 pr-8">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <div
+                                        className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 ${server.connectionStatus?.toUpperCase() ===
+                                          "CONNECTED"
+                                          ? "bg-green-500 animate-pulse"
+                                          : server.connectionStatus?.toUpperCase() ===
+                                            "DISCONNECTED"
+                                            ? "bg-gray-400"
                                             : server.connectionStatus?.toUpperCase() ===
-                                              "DISCONNECTED"
-                                              ? "bg-yellow-500 hover:bg-yellow-600"
-                                              : server.connectionStatus?.toUpperCase() ===
-                                                "FAILED"
-                                                ? "bg-red-500 hover:bg-red-600 animate-pulse"
-                                                : "bg-gray-400 hover:bg-gray-500"
-                                            }`}
-                                          title={`Status: ${server.connectionStatus || "Unknown"
-                                            }`}
-                                        />
-                                        <Server className="h-3 w-3 text-muted-foreground" />
-                                        <h3 className="font-medium text-sm truncate">
-                                          {server.name}
-                                        </h3>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                      {server.description && (
-                                        <div className="text-xs line-clamp-2 mb-1 prose prose-sm max-w-none [&>*]:text-foreground/80 [&>p]:text-foreground/75 [&>strong]:font-semibold [&>strong]:text-foreground [&>em]:italic [&>em]:text-foreground/80 [&>code]:bg-muted [&>code]:px-1 [&>code]:rounded [&>code]:text-xs [&>code]:text-foreground/90 [&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 hover:[&>a]:text-primary/80">
-                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                            {server.description}
-                                          </ReactMarkdown>
+                                              "FAILED"
+                                              ? "bg-red-500 animate-pulse"
+                                              : "bg-gray-400"
+                                          }`}
+                                        title={`Status: ${server.connectionStatus || "Unknown"
+                                          }`}
+                                      />
+                                      <Server className="h-3 w-3 text-muted-foreground" />
+                                      <h3 className="font-medium text-sm truncate">
+                                        {server.name}
+                                      </h3>
+                                      {server.requiresOauth2 && (
+                                        <div title="OAuth2 Required">
+                                          <Shield className="h-3 w-3 text-amber-500 flex-shrink-0" />
                                         </div>
                                       )}
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>{server.transport} • {server.tools?.length || 0} tools</span>
-                                        {server.requiresOauth2 && (
-                                          <span title="OAuth2 Required">
-                                            <Shield className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                                          </span>
-                                        )}
-                                      </div>
                                     </div>
-                                  </CardContent>
-                                </Card>
+                                  </div>
+                                  <div className="space-y-1">
+                                    {server.url && (
+                                      <p className="text-xs text-muted-foreground truncate">url: {server.url}</p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                      transport: {server.transport}
+                                    </p>
+                                    {server.createdAt && (
+                                      <p className="text-xs text-muted-foreground">
+                                        added on: {new Date(server.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
                               </motion.div>
                             ))}
                           </div>
@@ -877,6 +885,7 @@ export default function McpClientLayout({
                     {/* Description - Full Width */}
                     {selectedServer.description && (
                       <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
                         <div className="text-sm prose prose-sm max-w-none [&>*]:text-foreground/80 [&>p]:text-foreground/75 [&>strong]:font-semibold [&>strong]:text-foreground [&>em]:italic [&>em]:text-foreground/80 [&>code]:bg-muted [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:text-foreground/90 [&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 hover:[&>a]:text-primary/80 [&>ul]:text-foreground/75 [&>ol]:text-foreground/75 [&>li]:text-foreground/75">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {selectedServer.description}
@@ -903,18 +912,23 @@ export default function McpClientLayout({
                               {selectedServer.connectionStatus || "Unknown"}
                             </Badge>
                           </div>
+
                           <div className="flex items-center gap-2 text-sm">
-                            <Wrench className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">Tools:</span>
-                            <span className="text-muted-foreground">{selectedServer.tools?.length || 0} available</span>
+                            {selectedServer.requiresOauth2 ? (
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <LockOpen className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="font-medium">Server type:</span>
+                            {selectedServer.requiresOauth2 ? (
+                              <div className="flex items-center gap-1">
+                                <Shield className="h-4 w-4 text-amber-500" />
+                                <span className="text-muted-foreground">OAuth2</span>
+                              </div>
+                            ) : (
+                              <span className="text-blue-600 dark:text-blue-400 font-medium">Open</span>
+                            )}
                           </div>
-                          {selectedServer.requiresOauth2 && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Shield className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Authentication:</span>
-                              <Badge className="border-amber-500" variant="outline">OAuth2</Badge>
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -963,17 +977,17 @@ export default function McpClientLayout({
                       <div className="space-y-3">
                         <h3 className="text-sm font-medium text-muted-foreground">Metadata</h3>
                         <div className="space-y-2">
-                          {(selectedServer.createdAt) && (
+                          {selectedServer.createdAt && (
                             <div className="flex items-center gap-2 text-sm">
                               <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Created:</span>
-                              <span className="text-muted-foreground">{new Date(selectedServer.createdAt).toLocaleDateString()}</span>
+                              <span className="font-medium">Added on:</span>
+                              <span className="text-muted-foreground">{new Date(selectedServer.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
                           )}
                           {selectedServer.owner && (
                             <div className="flex items-center gap-2 text-sm">
                               <UserIcon className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Added by:</span>
+                              <span className="font-medium">By:</span>
                               <span className="text-muted-foreground">{selectedServer.owner}</span>
                             </div>
                           )}

@@ -12,7 +12,6 @@ import {
   ChevronUp,
   Rss,
   Globe,
-  Terminal,
   AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +35,7 @@ const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
 const serverSchema = z.object({
   name: z.string().min(1, "Server name is required"),
   description: z.string().optional(),
-  transport: z.enum(["sse", "streamable_http", "stdio"]),
+  transport: z.enum(["sse", "streamable_http"]),
   category: z.string(),
   url: z.string().optional(),
   command: z.string().optional(),
@@ -69,7 +68,7 @@ export default function ServerFormModal({
   session
 }: ServerFormModalProps) {
   const [showHeaders, setShowHeaders] = useState(false);
-  const [transportType, setTransportType] = useState<"sse" | "streamable_http" | "stdio">("sse");
+  const [transportType, setTransportType] = useState<"sse" | "streamable_http">("sse");
 
   const { loading, error, data } = useQuery<{
     categories: {
@@ -122,7 +121,7 @@ export default function ServerFormModal({
         reset({
           name: server.name,
           description: server.description || "",
-          transport: server.transport as "sse" | "streamable_http" | "stdio",
+          transport: server.transport as "sse" | "streamable_http",
           url: server.url || "",
           command: server.command || "",
           args: server.args ? (typeof server.args === 'string' ? server.args : JSON.stringify(server.args)) : "",
@@ -130,7 +129,7 @@ export default function ServerFormModal({
           isPublic: server.isPublic || false,
           headers: []
         });
-        setTransportType(server.transport as "sse" | "streamable_http" | "stdio");
+        setTransportType(server.transport as "sse" | "streamable_http");
       } else {
         reset({
           name: "",
@@ -202,7 +201,7 @@ export default function ServerFormModal({
               <Textarea
                 {...register("description")}
                 id="description"
-                placeholder="What does this server do? (optional)"
+                placeholder="What does this server do? (optional/markdown supported)"
                 className="min-h-[60px] resize-none"
               />
               <p className="text-xs text-muted-foreground">
@@ -215,7 +214,7 @@ export default function ServerFormModal({
               <p className="text-xs -mt-1 text-muted-foreground">
                 Choose how to connect to your MCP server:
               </p>
-              <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <label className={`
                 flex flex-col items-center justify-center p-2 rounded-lg border-2 cursor-pointer transition-colors
                 ${transportType === 'sse' ? "border-primary bg-primary/10" : "border-input hover:bg-accent"}
@@ -233,15 +232,6 @@ export default function ServerFormModal({
                   <Globe className="h-4 w-4 mb-1" />
                   <span className="font-semibold text-xs">HTTP</span>
                   <span className="text-xs text-muted-foreground">Streamable HTTP</span>
-                </label>
-                <label className={`
-                flex flex-col items-center justify-center p-2 rounded-lg border-2 cursor-pointer transition-colors
-                ${transportType === 'stdio' ? "border-primary bg-primary/10" : "border-input hover:bg-accent"}
-              `}>
-                  <input type="radio" {...register("transport")} value="stdio" className="sr-only" />
-                  <Terminal className="h-4 w-4 mb-1" />
-                  <span className="font-semibold text-xs">STDIO</span>
-                  <span className="text-xs text-muted-foreground">Standard I/O</span>
                 </label>
               </div>
             </div>
@@ -319,33 +309,17 @@ export default function ServerFormModal({
               </div>
             </div>
 
-            {transportType === 'stdio' ? (
-              <div className="space-y-1">
-                <Label htmlFor="command" className="text-xs">Command</Label>
-                <Input {...register("command")} id="command" placeholder="python" className="h-9" />
-                <p className="text-xs pt-1 text-muted-foreground">
-                  The command to execute for the server.
-                </p>
-                <Label htmlFor="args" className="text-xs">Arguments (JSON)</Label>
-                <Input {...register("args")} id="args" placeholder='["-m", "my_module"]' className="h-9" />
-                <p className="text-xs pt-1 text-muted-foreground">
-                  A JSON array of arguments to pass to the command.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <Label htmlFor="url" className="text-xs">Server URL</Label>
-                <Input {...register("url")} id="url" placeholder="https://mcp.example.com/token/mcp" className="h-9" />
-                {errors.url && <p className="text-red-500 text-xs mt-1">{errors.url.message}</p>}
-                <p className="text-xs pt-1 text-muted-foreground">
-                  Full URL to the endpoint of the MCP server
-                </p>
-              </div>
-            )}
+            <div className="space-y-1">
+              <Label htmlFor="url" className="text-xs">Server URL</Label>
+              <Input {...register("url")} id="url" placeholder="https://mcp.example.com/token/mcp" className="h-9" />
+              {errors.url && <p className="text-red-500 text-xs mt-1">{errors.url.message}</p>}
+              <p className="text-xs pt-1 text-muted-foreground">
+                Full URL to the endpoint of the MCP server
+              </p>
+            </div>
 
             {/* HTTP Headers Section */}
-            {transportType !== 'stdio' && (
-              <div className="space-y-1">
+            <div className="space-y-1">
                 <button
                   type="button"
                   onClick={() => setShowHeaders(!showHeaders)}
@@ -394,8 +368,7 @@ export default function ServerFormModal({
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
-            )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 px-6 py-2 border-t bg-background flex-shrink-0 rounded-b-md">
