@@ -328,16 +328,17 @@ export default function ToolExecutionPanel({
                 )}
 
                 {result.result ? (
-                  <div className="mt-2 rounded-md border border-slate-700 overflow-hidden">
+                  <div className="mt-2 rounded-md border border-slate-700 w-full min-w-0 overflow-hidden">
                     <p className="text-xs font-semibold text-gray-300 dark:text-gray-400 px-3 pt-3">Response:</p>
-                    <div className="max-h-48 overflow-y-auto overflow-x-hidden scrollbar-minimal">
+                    <div className="max-h-48 overflow-x-auto overflow-y-auto scrollbar-minimal w-2xl">
                       <SyntaxHighlighter
                         language="json"
                         style={atomOneDark}
                         customStyle={{
                           margin: 0,
                           padding: '12px',
-                          fontSize: '11px'
+                          fontSize: '11px',
+                          whiteSpace: 'pre'
                         }}
                       >
                         {typeof result.result === 'string' && result.result.startsWith('{')
