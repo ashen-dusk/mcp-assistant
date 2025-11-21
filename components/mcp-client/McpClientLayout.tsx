@@ -29,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { McpServer } from "@/types/mcp";
 import ServerManagement from "./ServerManagement";
 import ToolsExplorer from "./ToolsExplorer";
+import ToolExecutionPanel from "./ToolExecutionPanel";
 import { useSearchParams } from "next/navigation";
 import { Filter } from "lucide-react";
 import { useQuery } from "@apollo/client/react";
@@ -95,6 +96,8 @@ export default function McpClientLayout({
   onLoadMore
 }: McpClientLayoutProps) {
   const [selectedServer, setSelectedServer] = useState<McpServer | null>(null);
+  const [toolTesterOpen, setToolTesterOpen] = useState(false);
+  const [selectedToolName, setSelectedToolName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
@@ -130,6 +133,12 @@ export default function McpClientLayout({
       }
     }
   }, [currentServers, selectedServer]);
+
+  // Close tool tester when server selection changes
+  useEffect(() => {
+    setToolTesterOpen(false);
+    setSelectedToolName(null);
+  }, [selectedServer?.id]);
 
   useEffect(() => {
     if (categorySlug) {
@@ -816,230 +825,269 @@ export default function McpClientLayout({
           )}
         </AnimatePresence>
 
-        {/* Main Content Area */}
+        {/* Main Content Area with Right Panel */}
         <motion.div
           initial="hidden"
           animate="visible"
           variants={mainVariants}
           transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
-          className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'ml-80' : 'ml-0'}`}
+          className={`flex-1 flex transition-all duration-300 ${sidebarOpen ? 'ml-80' : 'ml-0'}`}
         >
-          {/* Show Sidebar Button - Only when sidebar is closed */}
-          {!sidebarOpen && (
-            <div className="p-4 border-b border-border">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <PanelLeftOpen className="h-4 w-4" />
-                Show Servers
-              </Button>
+          {/* Left Side - Main Content - Hidden when tool tester is open */}
+          {!toolTesterOpen && (
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Show Sidebar Button - Only when sidebar is closed */}
+              {!sidebarOpen && (
+                <div className="p-4 border-b border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSidebarOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <PanelLeftOpen className="h-4 w-4" />
+                    Show Servers
+                  </Button>
+                </div>
+              )}
+              <AnimatePresence mode="wait">
+              {selectedServer ? (
+                <motion.div
+                  key={selectedServer.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1 flex flex-col"
+                >
+                  {/* Server Header & Details */}
+                  <div className="p-4 sm:p-6 border-b border-border">
+                    <div className="flex flex-col gap-4">
+                      {/* Header with title and actions */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-xl sm:text-2xl font-semibold">{selectedServer.name}</h2>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="flex items-center gap-2"
+                              title={!session ? "Sign in to control context inclusion" : ""}
+                            >
+                              <Switch
+                                checked={selectedServer.enabled}
+                                onCheckedChange={() => handleToggleEnabled(selectedServer.name, selectedServer.enabled)}
+                                disabled={!session || toggleLoading === selectedServer.name}
+                                id="server-enabled"
+                                className="cursor-pointer"
+                              />
+                              {toggleLoading === selectedServer.name && (
+                                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                              )}
+                              <label htmlFor="server-enabled" className="text-xs text-muted-foreground cursor-pointer">
+                                {toggleLoading === selectedServer.name ? "Updating..." : (selectedServer.enabled ? "Included in context" : "Excluded from context")}
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <ServerManagement
+                            server={selectedServer}
+                            onAction={onServerAction}
+                            onEdit={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email) ? handleEditServer : undefined}
+                            onDelete={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email) ? handleDeleteServer : undefined}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Description - Full Width */}
+                      {selectedServer.description && (
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+                          <div className="text-sm prose prose-sm max-w-none [&>*]:text-foreground/80 [&>p]:text-foreground/75 [&>strong]:font-semibold [&>strong]:text-foreground [&>em]:italic [&>em]:text-foreground/80 [&>code]:bg-muted [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:text-foreground/90 [&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 hover:[&>a]:text-primary/80 [&>ul]:text-foreground/75 [&>ol]:text-foreground/75 [&>li]:text-foreground/75">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {selectedServer.description}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Server Information Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
+                        {/* Basic Info */}
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Server className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">Transport:</span>
+                              <span className="text-muted-foreground">{selectedServer.transport}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Activity className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">Status:</span>
+                              <Badge variant={selectedServer.connectionStatus === "CONNECTED" ? "default" : "secondary"}>
+                                {selectedServer.connectionStatus || "Unknown"}
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-sm">
+                              {selectedServer.requiresOauth2 ? (
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <LockOpen className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="font-medium">Server type:</span>
+                              {selectedServer.requiresOauth2 ? (
+                                <div className="flex items-center gap-1">
+                                  <Shield className="h-4 w-4 text-amber-500" />
+                                  <span className="text-muted-foreground">OAuth2</span>
+                                </div>
+                              ) : (
+                                <span className="text-blue-600 dark:text-blue-400 font-medium">Open</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Connection Details */}
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-medium text-muted-foreground">Connection Details</h3>
+                          <div className="space-y-2">
+                            {selectedServer.id && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="font-medium whitespace-nowrap">ID:</span>
+                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono truncate flex-1 min-w-0" title={selectedServer.id}>{selectedServer.id}</code>
+                              </div>
+                            )}
+                            {selectedServer.url && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="font-medium whitespace-nowrap">URL:</span>
+                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono truncate flex-1 min-w-0" title={selectedServer.url}>{selectedServer.url}</code>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(selectedServer.url!);
+                                    setUrlCopied(true);
+                                    setTimeout(() => setUrlCopied(false), 2000);
+                                  }}
+                                  className="h-6 w-6 p-0 hover:bg-accent cursor-pointer flex-shrink-0"
+                                >
+                                  {urlCopied ? (
+                                    <Check className="h-3 w-3 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                            {selectedServer.command && (
+                              <div className="flex items-start gap-2 text-sm">
+                                <span className="font-medium whitespace-nowrap">Command:</span>
+                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono break-all">{selectedServer.command}</code>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Metadata */}
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-medium text-muted-foreground">Metadata</h3>
+                          <div className="space-y-2">
+                            {selectedServer.createdAt && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">Added on:</span>
+                                <span className="text-muted-foreground">{new Date(selectedServer.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              </div>
+                            )}
+                            {selectedServer.owner && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <UserIcon className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">By:</span>
+                                <span className="text-muted-foreground">{selectedServer.owner}</span>
+                              </div>
+                            )}
+                            {selectedServer.isPublic !== undefined && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Globe className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">{selectedServer.isPublic ? "Public Server" : "Private Server"}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tools Explorer */}
+                  <div className="flex-1 overflow-y-auto">
+                    <ToolsExplorer
+                      server={selectedServer}
+                      onOpenToolTester={(toolName) => {
+                        setToolTesterOpen(true);
+                        if (toolName) {
+                          setSelectedToolName(toolName);
+                        }
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="no-selection"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex items-center justify-center min-h-[calc(100vh-120px)]"
+                >
+                  <div className="text-center">
+                    <div className="relative h-16 w-16 mx-auto mb-4">
+                      <Image
+                        src="/technologies/mcp-light.webp"
+                        alt="MCP"
+                        width={64}
+                        height={64}
+                        className="dark:hidden opacity-50"
+                      />
+                      <Image
+                        src="/technologies/mcp.webp"
+                        alt="MCP"
+                        width={64}
+                        height={64}
+                        className="hidden dark:block opacity-50"
+                      />
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Select a Server</h3>
+                    <p className="text-muted-foreground">
+                      Choose a server from the sidebar to view its tools and manage it
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
             </div>
           )}
-          <AnimatePresence mode="wait">
-            {selectedServer ? (
+
+          {/* Right Panel - Tool Execution - Full width when visible */}
+          <AnimatePresence>
+            {toolTesterOpen && selectedServer && (
               <motion.div
-                key={selectedServer.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, x: 320 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 320 }}
                 transition={{ duration: 0.3 }}
-                className="flex-1 flex flex-col"
+                className="flex-1"
               >
-                <div className="p-4 sm:p-6 border-b border-border">
-                  <div className="flex flex-col gap-4">
-                    {/* Header with title and actions */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-xl sm:text-2xl font-semibold">{selectedServer.name}</h2>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="flex items-center gap-2"
-                            title={!session ? "Sign in to control context inclusion" : ""}
-                          >
-                            <Switch
-                              checked={selectedServer.enabled}
-                              onCheckedChange={() => handleToggleEnabled(selectedServer.name, selectedServer.enabled)}
-                              disabled={!session || toggleLoading === selectedServer.name}
-                              id="server-enabled"
-                              className="cursor-pointer"
-                            />
-                            {toggleLoading === selectedServer.name && (
-                              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                            )}
-                            <label htmlFor="server-enabled" className="text-xs text-muted-foreground cursor-pointer">
-                              {toggleLoading === selectedServer.name ? "Updating..." : (selectedServer.enabled ? "Included in context" : "Excluded from context")}
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <ServerManagement
-                          server={selectedServer}
-                          onAction={onServerAction}
-                          onEdit={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email) ? handleEditServer : undefined}
-                          onDelete={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email) ? handleDeleteServer : undefined}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Description - Full Width */}
-                    {selectedServer.description && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                        <div className="text-sm prose prose-sm max-w-none [&>*]:text-foreground/80 [&>p]:text-foreground/75 [&>strong]:font-semibold [&>strong]:text-foreground [&>em]:italic [&>em]:text-foreground/80 [&>code]:bg-muted [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:text-foreground/90 [&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 hover:[&>a]:text-primary/80 [&>ul]:text-foreground/75 [&>ol]:text-foreground/75 [&>li]:text-foreground/75">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {selectedServer.description}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Server Information Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
-                      {/* Basic Info */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Server className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">Transport:</span>
-                            <span className="text-muted-foreground">{selectedServer.transport}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Activity className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">Status:</span>
-                            <Badge variant={selectedServer.connectionStatus === "CONNECTED" ? "default" : "secondary"}>
-                              {selectedServer.connectionStatus || "Unknown"}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm">
-                            {selectedServer.requiresOauth2 ? (
-                              <Lock className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <LockOpen className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className="font-medium">Server type:</span>
-                            {selectedServer.requiresOauth2 ? (
-                              <div className="flex items-center gap-1">
-                                <Shield className="h-4 w-4 text-amber-500" />
-                                <span className="text-muted-foreground">OAuth2</span>
-                              </div>
-                            ) : (
-                              <span className="text-blue-600 dark:text-blue-400 font-medium">Open</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Connection Details */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium text-muted-foreground">Connection Details</h3>
-                        <div className="space-y-2">
-                          {selectedServer.id && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="font-medium whitespace-nowrap">ID:</span>
-                              <code className="bg-muted px-2 py-1 rounded text-xs font-mono truncate flex-1 min-w-0" title={selectedServer.id}>{selectedServer.id}</code>
-                            </div>
-                          )}
-                          {selectedServer.url && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="font-medium whitespace-nowrap">URL:</span>
-                              <code className="bg-muted px-2 py-1 rounded text-xs font-mono truncate flex-1 min-w-0" title={selectedServer.url}>{selectedServer.url}</code>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(selectedServer.url!);
-                                  setUrlCopied(true);
-                                  setTimeout(() => setUrlCopied(false), 2000);
-                                }}
-                                className="h-6 w-6 p-0 hover:bg-accent cursor-pointer flex-shrink-0"
-                              >
-                                {urlCopied ? (
-                                  <Check className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                          {selectedServer.command && (
-                            <div className="flex items-start gap-2 text-sm">
-                              <span className="font-medium whitespace-nowrap">Command:</span>
-                              <code className="bg-muted px-2 py-1 rounded text-xs font-mono break-all">{selectedServer.command}</code>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Metadata */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium text-muted-foreground">Metadata</h3>
-                        <div className="space-y-2">
-                          {selectedServer.createdAt && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Added on:</span>
-                              <span className="text-muted-foreground">{new Date(selectedServer.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                            </div>
-                          )}
-                          {selectedServer.owner && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <UserIcon className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">By:</span>
-                              <span className="text-muted-foreground">{selectedServer.owner}</span>
-                            </div>
-                          )}
-                          {selectedServer.isPublic !== undefined && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Globe className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">{selectedServer.isPublic ? "Public Server" : "Private Server"}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <ToolsExplorer server={selectedServer} />
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="no-selection"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 flex items-center justify-center min-h-[calc(100vh-120px)]"
-              >
-                <div className="text-center">
-                  <div className="relative h-16 w-16 mx-auto mb-4">
-                    <Image
-                      src="/technologies/mcp-light.webp"
-                      alt="MCP"
-                      width={64}
-                      height={64}
-                      className="dark:hidden opacity-50"
-                    />
-                    <Image
-                      src="/technologies/mcp.webp"
-                      alt="MCP"
-                      width={64}
-                      height={64}
-                      className="hidden dark:block opacity-50"
-                    />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">Select a Server</h3>
-                  <p className="text-muted-foreground">
-                    Choose a server from the sidebar to view its tools and manage it
-                  </p>
-                </div>
+                <ToolExecutionPanel
+                  server={selectedServer}
+                  tools={Array.isArray(selectedServer.tools) ? selectedServer.tools : []}
+                  onClose={() => {
+                    setToolTesterOpen(false);
+                    setSelectedToolName(null);
+                  }}
+                  initialToolName={selectedToolName}
+                />
               </motion.div>
             )}
           </AnimatePresence>

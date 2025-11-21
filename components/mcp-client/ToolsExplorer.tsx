@@ -19,18 +19,17 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { McpServer, ToolInfo } from "@/types/mcp";
-import ToolCallDialog from "./ToolCallDialog";
+import { Zap } from "lucide-react";
 
 interface ToolsExplorerProps {
   server: McpServer;
+  onOpenToolTester?: (toolName?: string) => void;
 }
 
-export default function ToolsExplorer({ server }: ToolsExplorerProps) {
+export default function ToolsExplorer({ server, onOpenToolTester }: ToolsExplorerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'unavailable'>('all');
-  const [toolCallDialogOpen, setToolCallDialogOpen] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<ToolInfo | null>(null);
 
   // Handle different tools formats
   const tools = Array.isArray(server.tools) ? server.tools : [];
@@ -45,15 +44,6 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
     return matchesSearch && matchesFilter;
   });
 
-  const handleCallTool = (tool: ToolInfo) => {
-    setSelectedTool(tool);
-    setToolCallDialogOpen(true);
-  };
-
-  const handleCloseToolDialog = () => {
-    setToolCallDialogOpen(false);
-    setSelectedTool(null);
-  };
 
   const getToolCategory = (toolName: string) => {
     // Simple categorization based on tool name patterns
@@ -113,8 +103,18 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
               {filteredTools.length} of {tools.length} tools
             </p>
           </div>
-          
+
           <div className="flex items-center gap-2">
+            {/* Open Tool Tester Button */}
+            {tools.length > 0 && (
+              <Button
+                onClick={() => onOpenToolTester?.()}
+                className="cursor-pointer bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Test Tools
+              </Button>
+            )}
             {/* View Mode Toggle */}
             <div className="flex items-center border border-border rounded-md">
               <Button
@@ -194,7 +194,7 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                 >
                   <Card
                     className="h-full hover:shadow-md transition-shadow duration-200 overflow-hidden cursor-pointer"
-                    onClick={() => server.connectionStatus === 'CONNECTED' && handleCallTool(tool)}
+                    onClick={() => server.connectionStatus === 'CONNECTED' && onOpenToolTester?.(tool.name)}
                   >
                     <CardHeader>
                       <div className="flex flex-col gap-2 min-w-0">
@@ -246,7 +246,7 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                 >
                   <Card
                     className="hover:shadow-md transition-shadow duration-200 cursor-pointer"
-                    onClick={() => server.connectionStatus === 'CONNECTED' && handleCallTool(tool)}
+                    onClick={() => server.connectionStatus === 'CONNECTED' && onOpenToolTester?.(tool.name)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -287,14 +287,6 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
         </Card>
       )}
 
-      {selectedTool && (
-        <ToolCallDialog
-          isOpen={toolCallDialogOpen}
-          onClose={handleCloseToolDialog}
-          serverName={server.name}
-          tool={selectedTool}
-        />
-      )}
     </div>
   );
 }
