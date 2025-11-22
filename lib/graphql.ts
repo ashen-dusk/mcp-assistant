@@ -20,11 +20,11 @@ export const MCP_SERVER_FRAGMENT = `
     transport
     url
     command
-    category {
-    id
-    name
-    slug   
-  }
+    categories {
+      id
+      name
+      slug
+    }
     args
     enabled
     description
@@ -49,7 +49,7 @@ export const MCP_SERVER_CONFIG_FRAGMENT = `
     transport
     url
     command
-    category {
+    categories {
       id
       name
       slug
@@ -165,6 +165,7 @@ export const SAVE_MCP_SERVER_MUTATION = `
     $requiresOauth2: Boolean
     $isPublic: Boolean
     $description: String
+    $categoryIds: [String!]
   ) {
     saveMcpServer(
       name: $name
@@ -177,6 +178,7 @@ export const SAVE_MCP_SERVER_MUTATION = `
       requiresOauth2: $requiresOauth2
       isPublic: $isPublic
       description: $description
+      categoryIds: $categoryIds
     ) {
     id
     name
@@ -191,6 +193,11 @@ export const SAVE_MCP_SERVER_MUTATION = `
     createdAt
     owner
     isPublic
+    categories {
+      id
+      name
+      slug
+    }
     }
   }
 `;

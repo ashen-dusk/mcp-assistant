@@ -344,7 +344,7 @@ export default function McpClientLayout({
       // Find category ID by slug
       const category = categories.find(cat => cat.slug === activeCategory);
       if (category?.id) {
-        filters.category = {
+        filters.categories = {
           id: {
             exact: category.id
           }
