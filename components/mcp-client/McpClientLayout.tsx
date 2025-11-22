@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
+import { connectionStore } from "@/lib/mcp/connection-store";
 
 
 
@@ -374,10 +375,29 @@ export default function McpClientLayout({
   const filteredServers = useMemo(() => {
     // If search query or category filter is active, use API results
     if (debouncedSearch.trim() || activeCategory) {
-      return searchResults;
+      // Merge search results with localStorage connection state
+      const storedConnections = connectionStore.getAll();
+      console.log('[Search/Filter] Stored connections:', Object.keys(storedConnections));
+      return searchResults.map((server: McpServer) => {
+        const stored = storedConnections[server.name];
+        if (stored && stored.connectionStatus === 'CONNECTED') {
+          console.log('[Search/Filter] Merging connection state for:', server.name);
+          return {
+            ...server,
+            connectionStatus: stored.connectionStatus,
+            tools: stored.tools,
+          };
+        }
+        // If not in localStorage, it's disconnected
+        return {
+          ...server,
+          connectionStatus: server.connectionStatus || 'DISCONNECTED',
+          tools: server.tools || [],
+        };
+      });
     }
 
-    // Otherwise use current servers as-is
+    // Otherwise use current servers as-is (already merged in page.tsx)
     return currentServers || [];
   }, [currentServers, activeCategory, debouncedSearch, searchResults]);
 

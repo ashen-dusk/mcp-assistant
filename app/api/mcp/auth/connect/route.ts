@@ -6,6 +6,7 @@ interface ConnectRequestBody {
   serverUrl: string;
   callbackUrl: string;
   serverName?: string;
+  transportType?: 'sse' | 'streamable_http';
 }
 
 /**
@@ -36,7 +37,7 @@ interface ConnectRequestBody {
 export async function POST(request: NextRequest) {
   try {
     const body: ConnectRequestBody = await request.json();
-    const { serverUrl, callbackUrl, serverName } = body;
+    const { serverUrl, callbackUrl, serverName, transportType } = body;
 
     if (!serverUrl || !callbackUrl) {
       return NextResponse.json(
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
     // Create state object with sessionId and serverName
     const stateData = JSON.stringify({ sessionId, serverName });
 
+    // Normalize transport type (default to streamable_http if not specified)
+    let normalizedTransport: 'sse' | 'streamable_http' = 'streamable_http';
+    if (transportType === 'sse' || transportType === 'streamable_http') {
+      normalizedTransport = transportType;
+    }
+
+    console.log('[Connect API] Using transport type:', normalizedTransport);
+
     // Create MCP client with redirect handler and state data
     const client = new MCPOAuthClient(
       serverUrl,
@@ -58,7 +67,8 @@ export async function POST(request: NextRequest) {
       (redirectUrl: string) => {
         authUrl = redirectUrl;
       },
-      stateData // Pass state data (sessionId + serverName) for OAuth state parameter
+      stateData, // Pass state data (sessionId + serverName) for OAuth state parameter
+      normalizedTransport // Pass transport type
     );
 
     try {

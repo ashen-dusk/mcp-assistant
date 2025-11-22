@@ -29,14 +29,11 @@ export const MCP_SERVER_FRAGMENT = `
     enabled
     description
     requiresOauth2
-    connectionStatus
-    tools { ...ToolInfoFields }
     updatedAt
     createdAt
     owner
     isPublic
   }
-  ${TOOL_INFO_FRAGMENT}
 `;
 
 /**
@@ -127,7 +124,6 @@ export const CONNECT_MCP_SERVER_MUTATION = `
     connectMcpServer(name: $serverName) {
       success
       message
-      connectionStatus
       requiresAuth
       authorizationUrl
       state
@@ -191,7 +187,6 @@ export const SAVE_MCP_SERVER_MUTATION = `
     args
     enabled
     requiresOauth2
-    connectionStatus
     updatedAt
     createdAt
     owner
@@ -211,7 +206,6 @@ export const RESTART_MCP_SERVER_MUTATION = `
     restartMcpServer(name: $name) {
       success
       message
-      connectionStatus
       requiresAuth
       authorizationUrl
       state

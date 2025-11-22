@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { UnauthorizedError as SDKUnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import {
   ListToolsRequest,
@@ -11,6 +12,11 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { OAuthClientMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InMemoryOAuthClientProvider } from './oauth-provider';
+
+/**
+ * Supported MCP transport types
+ */
+export type TransportType = 'sse' | 'streamable_http';
 
 /**
  * Custom error for OAuth authorization requirements
@@ -31,16 +37,19 @@ export class UnauthorizedError extends Error {
 export class MCPOAuthClient {
   private client: Client | null = null;
   private oauthProvider: InMemoryOAuthClientProvider | null = null;
-  private transport: StreamableHTTPClientTransport | null = null;
+  private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private sessionId?: string;
+  private transportType: TransportType;
 
   constructor(
     private serverUrl: string,
     private callbackUrl: string,
     private onRedirect: (url: string) => void,
-    sessionId?: string
+    sessionId?: string,
+    transportType: TransportType = 'streamable_http'
   ) {
     this.sessionId = sessionId;
+    this.transportType = transportType;
   }
 
   /**
@@ -90,9 +99,17 @@ export class MCPOAuthClient {
     }
 
     const baseUrl = new URL(this.serverUrl);
-    this.transport = new StreamableHTTPClientTransport(baseUrl, {
-      authProvider: this.oauthProvider,
-    });
+
+    // Create appropriate transport based on type
+    if (this.transportType === 'sse') {
+      this.transport = new SSEClientTransport(baseUrl, {
+        authProvider: this.oauthProvider,
+      });
+    } else {
+      this.transport = new StreamableHTTPClientTransport(baseUrl, {
+        authProvider: this.oauthProvider,
+      });
+    }
 
     try {
       await this.client.connect(this.transport);
@@ -143,9 +160,17 @@ export class MCPOAuthClient {
     );
 
     const baseUrl = new URL(this.serverUrl);
-    this.transport = new StreamableHTTPClientTransport(baseUrl, {
-      authProvider: this.oauthProvider,
-    });
+
+    // Create appropriate transport based on type
+    if (this.transportType === 'sse') {
+      this.transport = new SSEClientTransport(baseUrl, {
+        authProvider: this.oauthProvider,
+      });
+    } else {
+      this.transport = new StreamableHTTPClientTransport(baseUrl, {
+        authProvider: this.oauthProvider,
+      });
+    }
 
     // Now connect with authenticated transport
     console.log('[OAuth Client] Connecting with authenticated transport...');

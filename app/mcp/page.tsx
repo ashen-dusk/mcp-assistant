@@ -91,8 +91,29 @@ function McpPageContent() {
       const newServers = edges.map((edge: { node: unknown }) => edge.node);
       const pageInfo = json?.data?.mcpServers?.pageInfo;
 
-      // Append new servers to existing list
-      setPublicServers(prev => prev ? [...prev, ...newServers] : newServers);
+      // Merge new servers with stored connection state from localStorage
+      const storedConnections = connectionStore.getAll();
+      console.log('[Load More] Stored connections:', Object.keys(storedConnections));
+      const mergedNewServers = newServers.map((server: McpServer) => {
+        const stored = storedConnections[server.name];
+        if (stored && stored.connectionStatus === 'CONNECTED') {
+          console.log('[Load More] Merging connection state for:', server.name);
+          return {
+            ...server,
+            connectionStatus: stored.connectionStatus,
+            tools: stored.tools,
+          };
+        }
+        // If not in localStorage, it's disconnected
+        return {
+          ...server,
+          connectionStatus: server.connectionStatus || 'DISCONNECTED',
+          tools: server.tools || [],
+        };
+      });
+
+      // Append merged servers to existing list
+      setPublicServers(prev => prev ? [...prev, ...mergedNewServers] : mergedNewServers);
       setHasNextPage(pageInfo?.hasNextPage ?? false);
       setEndCursor(pageInfo?.endCursor ?? null);
     } catch (e: unknown) {
@@ -198,12 +219,21 @@ function McpPageContent() {
           throw new Error(`Transport type '${serverConfig.transport}' must use the Django GraphQL connection. HTTP-based connection only supports servers with proper SSE/HTTP streaming endpoints.`);
         }
 
-        // Normalize URL - remove /sse or /message suffix
+        // Normalize URL based on transport type
         let normalizedUrl = serverConfig.url;
-        if (normalizedUrl.endsWith('/sse')) {
-          normalizedUrl = normalizedUrl.slice(0, -4);
-        } else if (normalizedUrl.endsWith('/message')) {
-          normalizedUrl = normalizedUrl.slice(0, -8);
+
+        if (serverConfig.transport === 'sse') {
+          // SSE transport requires /sse endpoint - ensure it's present
+          if (!normalizedUrl.endsWith('/sse')) {
+            normalizedUrl = normalizedUrl + '/sse';
+          }
+        } else if (serverConfig.transport === 'streamable_http') {
+          // StreamableHTTP uses the base URL - remove /sse or /message suffix if present
+          if (normalizedUrl.endsWith('/sse')) {
+            normalizedUrl = normalizedUrl.slice(0, -4);
+          } else if (normalizedUrl.endsWith('/message')) {
+            normalizedUrl = normalizedUrl.slice(0, -8);
+          }
         }
 
         console.log('[MCP Connect] Server:', serverName);
@@ -222,6 +252,7 @@ function McpPageContent() {
             serverUrl: normalizedUrl,
             callbackUrl: callbackUrl,
             serverName: serverName, // Pass server name so it can be included in OAuth state
+            transportType: serverConfig.transport, // Pass transport type (sse, streamable_http, etc.)
           }),
         });
 
