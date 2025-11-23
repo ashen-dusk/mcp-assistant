@@ -14,6 +14,7 @@ import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import { toast } from "react-hot-toast";
 import AssistantDropdown from "./AssistantDropdown";
 import ModelDropdown from "./ModelDropdown";
+import MCPToolsDropdown, { MCPToolSelection } from "./MCPToolsDropdown";
 import MicrophoneButton from "./MicrophoneButton";
 import AuthDialog from "./dialogs/AuthDialog";
 import AssistantCreateDialog from "./dialogs/AssistantCreateDialog";
@@ -67,6 +68,13 @@ export default function ChatInput({
   // Separate state for model - independent of coagent state
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
 
+  // MCP tool selection state
+  const [toolSelection, setToolSelection] = useState<MCPToolSelection>({
+    selectedServers: [],
+    selectedTools: [],
+    mcpConfig: {},
+  });
+
   const { state, setState } = useCoAgent<AgentState>({
     name: "mcpAssistant",
     initialState: {
@@ -74,6 +82,8 @@ export default function ChatInput({
       status: undefined,
       sessionId: getSessionId(session),
       assistant: activeAssistant,
+      mcp_config: toolSelection.mcpConfig,
+      selectedTools: toolSelection.selectedTools,
     },
   });
 
@@ -88,7 +98,7 @@ export default function ChatInput({
   // console.log("Agent State:", state);
 
   const [message, setMessage] = useState("");
-  const [dropdownState, setDropdownState] = useState<"model" | "assistant" | null>(null);
+  const [dropdownState, setDropdownState] = useState<"model" | "assistant" | "mcp" | null>(null);
   const [dialogState, setDialogState] = useState<"auth" | "create" | "edit" | "delete" | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [editingAssistant, setEditingAssistant] = useState<Assistant | null>(null);
@@ -123,6 +133,16 @@ export default function ChatInput({
     } finally {
       setIsBusy(false);
     }
+  };
+
+  const handleToolSelectionChange = (newSelection: MCPToolSelection) => {
+    setToolSelection(newSelection);
+    // Update coagent state with new MCP config and selected tools
+    setState({
+      ...state,
+      mcp_config: newSelection.mcpConfig,
+      selectedTools: newSelection.selectedTools,
+    });
   };
 
   const handleCreateAssistant = async () => {
@@ -328,6 +348,14 @@ export default function ChatInput({
               handleCreateAssistantClick={() => setDialogState("create")}
             />
           )}
+
+          {/* MCP Tools Selection Dropdown */}
+          <MCPToolsDropdown
+            selection={toolSelection}
+            onSelectionChange={handleToolSelectionChange}
+            showDropdown={dropdownState === "mcp"}
+            setShowDropdown={(open) => setDropdownState(open ? "mcp" : null)}
+          />
 
           {/* Model Selection Dropdown */}
           <ModelDropdown

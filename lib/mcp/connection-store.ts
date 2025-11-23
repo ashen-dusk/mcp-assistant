@@ -165,10 +165,10 @@ class ConnectionStore {
   }
 
   /**
-   * Validate a sessionId by checking if it's still active on the backend
+   * Validate a connection by checking if its sessionId is still active on the backend
    * Removes the connection from localStorage if invalid
    */
-  async validateAndCleanup(serverName: string): Promise<boolean> {
+  async validateConnection(serverName: string): Promise<boolean> {
     if (typeof window === 'undefined') return false;
 
     const connection = this.get(serverName);
@@ -197,16 +197,16 @@ class ConnectionStore {
   }
 
   /**
-   * Validate all stored connections and clean up expired ones
+   * Get all valid connections (validates and cleans up expired ones)
    * Returns a list of valid server names
    */
-  async validateAllAndCleanup(): Promise<string[]> {
+  async getValidConnections(): Promise<string[]> {
     const connections = this.getAll();
     const validServers: string[] = [];
 
     // Validate all connections in parallel
     const validationPromises = Object.keys(connections).map(async (serverName) => {
-      const isValid = await this.validateAndCleanup(serverName);
+      const isValid = await this.validateConnection(serverName);
       if (isValid) {
         validServers.push(serverName);
       }

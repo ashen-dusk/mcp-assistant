@@ -67,12 +67,23 @@ export type Assistant = {
   updatedAt: string;
 };
 
+// MCP Config format for MultiServerMCPClient
+export type McpConfig = {
+  [serverName: string]: {
+    transport: string; // "sse" | "websocket" | "streamable_http"
+    url: string;
+    headers?: Record<string, string>;
+  };
+};
+
 // CopilotKit Agent Types
 export type AgentState = {
   model: string;
   status?: string;
   sessionId: string;
   assistant?: Assistant | null;
+  mcp_config?: McpConfig; // MCP config dict for MultiServerMCPClient
+  selectedTools?: string[]; // Selected tool names to filter
 };
 
 export interface Tool {

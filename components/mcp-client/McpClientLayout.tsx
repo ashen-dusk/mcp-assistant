@@ -406,13 +406,22 @@ export default function McpClientLayout({
   };
 
   // Calculate total active (connected) servers count from connectionStore
-  const activeServersCount = useMemo(() => {
-    const storedConnections = connectionStore.getAll();
-    // Count connections with CONNECTED status
-    return Object.values(storedConnections).filter(
-      (conn) => conn.connectionStatus === 'CONNECTED'
-    ).length;
-  }, [publicServers, userServers]); // Re-calculate when servers update
+  const [activeServersCount, setActiveServersCount] = useState(0);
+
+  // Validate and count active connections
+  useEffect(() => {
+    const validateAndCount = async () => {
+      // Get valid connections (validates sessions and cleans up expired ones)
+      const validServerNames = await connectionStore.getValidConnections();
+      setActiveServersCount(validServerNames.length);
+    };
+
+    validateAndCount();
+
+    // Re-validate every 30 seconds to keep count accurate
+    const interval = setInterval(validateAndCount, 30000);
+    return () => clearInterval(interval);
+  }, [publicServers, userServers]); // Re-validate when servers update
 
   if (currentError) {
     return (
