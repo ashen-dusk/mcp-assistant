@@ -84,6 +84,8 @@ export type AgentState = {
   assistant?: Assistant | null;
   mcp_config?: McpConfig; // MCP config dict for MultiServerMCPClient
   selectedTools?: string[]; // Selected tool names to filter
+  llm_provider?: string; // LLM provider (openai, deepseek, etc.)
+  llm_api_key?: string; // User's API key for the provider
 };
 
 export interface Tool {
