@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Server, Wrench, Activity, PanelLeftClose, PanelLeftOpen, Plus, Edit, Trash2, Loader2, Globe, RefreshCw, Calendar, User as UserIcon, Shield, Copy, Check, Search, Lock, LockOpen } from "lucide-react";
+import { Server, Wrench, Activity, PanelLeftClose, PanelLeftOpen, Plus, Edit, Trash2, Loader2, Globe, RefreshCw, Calendar, User as UserIcon, Shield, Copy, Check, Search, Lock, LockOpen, Clock } from "lucide-react";
 import { Toaster, toast } from "react-hot-toast";
 import { Session } from "next-auth";
 import ReactMarkdown from "react-markdown";
@@ -1007,6 +1007,43 @@ export default function McpClientLayout({
                                 <code className="bg-muted px-2 py-1 rounded text-xs font-mono break-all">{selectedServer.command}</code>
                               </div>
                             )}
+                            {(() => {
+                              const connection = connectionStore.get(selectedServer.name);
+                              if (!connection) return null;
+
+                              return (
+                                <>
+                                  {connection.connectedAt && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="font-medium whitespace-nowrap">Connected At:</span>
+                                      <span className="text-muted-foreground text-xs">
+                                        {new Date(connection.connectedAt).toLocaleString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric',
+                                          hour: 'numeric',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {connection.lastChecked && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="font-medium whitespace-nowrap">Last Checked:</span>
+                                      <span className="text-muted-foreground text-xs">
+                                        {new Date(connection.lastChecked).toLocaleString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric',
+                                          hour: 'numeric',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
 

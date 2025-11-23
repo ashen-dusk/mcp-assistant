@@ -29,24 +29,32 @@ export async function POST(request: NextRequest) {
 async function handleCallback(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
     const code = searchParams.get('code');
     const state = searchParams.get('state'); // OAuth state parameter contains sessionId + serverName
 
-    console.log('[Callback] Received code:', code);
-    console.log('[Callback] Received state:', state);
+    // Check if OAuth provider returned an error
+    if (error) {
+      const errorUrl = new URL('/mcp', request.url);
+      errorUrl.searchParams.set('step', 'error');
+      const errorMessage = errorDescription || error;
+      errorUrl.searchParams.set('error', errorMessage);
+      return NextResponse.redirect(errorUrl);
+    }
 
     if (!code) {
-      return NextResponse.json(
-        { error: 'Authorization code is required' },
-        { status: 400 }
-      );
+      const errorUrl = new URL('/mcp', request.url);
+      errorUrl.searchParams.set('step', 'error');
+      errorUrl.searchParams.set('error', 'Authorization code is required');
+      return NextResponse.redirect(errorUrl);
     }
 
     if (!state) {
-      return NextResponse.json(
-        { error: 'Session ID is required (state parameter missing)' },
-        { status: 400 }
-      );
+      const errorUrl = new URL('/mcp', request.url);
+      errorUrl.searchParams.set('step', 'error');
+      errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
+      return NextResponse.redirect(errorUrl);
     }
 
     // Parse state JSON to get sessionId and serverName
@@ -57,70 +65,70 @@ async function handleCallback(request: NextRequest) {
       const stateData = JSON.parse(state);
       sessionId = stateData.sessionId;
       serverName = stateData.serverName;
-      console.log('[Callback] Parsed state - sessionId:', sessionId, 'serverName:', serverName);
     } catch {
       // Fallback: treat state as plain sessionId for backward compatibility
       sessionId = state;
-      console.log('[Callback] Using state as plain sessionId:', sessionId);
     }
 
     // Retrieve client from session store
     const client = sessionStore.getClient(sessionId);
     if (!client) {
-      return NextResponse.json(
-        { error: 'Invalid session ID or session expired' },
-        { status: 404 }
-      );
+      const errorUrl = new URL('/mcp', request.url);
+      if (serverName) {
+        errorUrl.searchParams.set('server', serverName);
+      }
+      errorUrl.searchParams.set('step', 'error');
+      errorUrl.searchParams.set('error', 'Invalid session ID or session expired');
+      return NextResponse.redirect(errorUrl);
     }
 
     try {
       // Complete OAuth authorization with the code
-      console.log('[Callback] Completing OAuth with sessionId:', sessionId);
       await client.finishAuth(code);
-      console.log('[Callback] OAuth authorization completed successfully');
 
       // Store server-to-session mapping if serverName is provided
       if (serverName) {
         sessionStore.setServerSession(serverName, sessionId);
-        console.log('[Callback] Stored server-to-session mapping:', serverName, '->', sessionId);
       }
 
       // Redirect back to MCP page with success parameters
       const successUrl = new URL('/mcp', request.url);
-      successUrl.searchParams.set('step', 'success');
-      successUrl.searchParams.set('sessionId', sessionId);
       if (serverName) {
         successUrl.searchParams.set('server', serverName);
       }
+      successUrl.searchParams.set('sessionId', sessionId);
+      successUrl.searchParams.set('step', 'success');
 
       return NextResponse.redirect(successUrl);
     } catch (error: unknown) {
-      console.log('[Callback] OAuth authorization failed:', error);
       if (error instanceof Error) {
         // Redirect to MCP page with error parameter
         const errorUrl = new URL('/mcp', request.url);
-        errorUrl.searchParams.set('step', 'error');
-        errorUrl.searchParams.set('error', error.message);
         if (serverName) {
           errorUrl.searchParams.set('server', serverName);
         }
+        errorUrl.searchParams.set('step', 'error');
+        errorUrl.searchParams.set('error', error.message);
         return NextResponse.redirect(errorUrl);
       }
       const errorUrl = new URL('/mcp', request.url);
-      errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Authorization failed');
       if (serverName) {
         errorUrl.searchParams.set('server', serverName);
       }
+      errorUrl.searchParams.set('step', 'error');
+      errorUrl.searchParams.set('error', 'Authorization failed');
       return NextResponse.redirect(errorUrl);
     }
   } catch (error: unknown) {
+    const errorUrl = new URL('/mcp', request.url);
+    errorUrl.searchParams.set('step', 'error');
+
     if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      errorUrl.searchParams.set('error', error.message);
+    } else {
+      errorUrl.searchParams.set('error', 'Failed to process callback');
     }
-    return NextResponse.json(
-      { error: 'Failed to process callback' },
-      { status: 500 }
-    );
+
+    return NextResponse.redirect(errorUrl);
   }
 }

@@ -60,7 +60,7 @@ export class MCPOAuthClient {
    */
   async connect(): Promise<void> {
     const clientMetadata: OAuthClientMetadata = {
-      client_name: 'Next.js MCP OAuth Client',
+      client_name: 'MCP Assistant',
       redirect_uris: [this.callbackUrl],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
@@ -81,8 +81,8 @@ export class MCPOAuthClient {
 
     this.client = new Client(
       {
-        name: 'nextjs-oauth-client',
-        version: '1.0.0',
+        name: 'mcp-assistant-oauth-client',
+        version: '2.0',
       },
       { capabilities: {} }
     );
@@ -153,8 +153,8 @@ export class MCPOAuthClient {
 
     this.client = new Client(
       {
-        name: 'nextjs-oauth-client',
-        version: '1.0.0',
+        name: 'mcp-assistant-oauth-client',
+        version: '2.0',
       },
       { capabilities: {} }
     );
