@@ -23,6 +23,17 @@ function McpPageContent() {
   const [endCursor, setEndCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  // Validate and cleanup expired sessions on mount
+  useEffect(() => {
+    const validateSessions = async () => {
+      console.log('[MCP Page] Validating stored sessions...');
+      const validServers = await connectionStore.validateAllAndCleanup();
+      console.log('[MCP Page] Valid sessions:', validServers);
+    };
+
+    validateSessions();
+  }, []); // Run once on mount
+
   const fetchPublicServers = async (reset = true) => {
     if (reset) {
       setPublicLoading(true);
@@ -167,7 +178,7 @@ function McpPageContent() {
     }
   }, [session]);
 
-  const handleServerAction = async (serverName: string, action: 'restart' | 'activate' | 'deactivate') => {
+  const handleServerAction = async (serverName: string, action: 'activate' | 'deactivate') => {
     try {
       // Handle activate action directly with MCP connect API
       if (action === 'activate') {
@@ -358,91 +369,6 @@ function McpPageContent() {
 
         return { success: true };
       }
-
-      // Handle restart with actions endpoint
-      const response = await fetch('/api/mcp/actions', {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          action,
-          serverName
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || result.errors) {
-        throw new Error(result.errors?.[0]?.message || 'Action failed');
-      }
-
-      // Check if OAuth authorization is required for restart
-      if (action === 'restart') {
-        const actionResult = result.data?.restartMcpServer;
-
-        if (actionResult?.requiresAuth && actionResult?.authorizationUrl) {
-          window.location.href = actionResult.authorizationUrl;
-          return actionResult;
-        }
-      }
-
-      // Get the response data for the specific action
-      const actionResponse = result.data?.restartMcpServer;
-      const updatedServer = actionResponse?.server;
-
-      // Update local state
-      setPublicServers(prevServers => {
-        if (!prevServers) return prevServers;
-        return prevServers.map(server => {
-          if (server.name === serverName) {
-            let newConnectionStatus = updatedServer?.connectionStatus;
-
-            if (actionResponse && actionResponse.success === false) {
-              newConnectionStatus = 'FAILED';
-            } else if (!newConnectionStatus) {
-              newConnectionStatus = 'CONNECTED';
-            } else {
-              newConnectionStatus = newConnectionStatus.toUpperCase();
-            }
-
-            return {
-              ...server,
-              connectionStatus: newConnectionStatus,
-              tools: newConnectionStatus === 'FAILED' ? [] : (updatedServer?.tools || server.tools),
-              updated_at: new Date().toISOString()
-            };
-          }
-          return server;
-        });
-      });
-
-      setUserServers(prevServers => {
-        if (!prevServers) return prevServers;
-        return prevServers.map(server => {
-          if (server.name === serverName) {
-            let newConnectionStatus = updatedServer?.connectionStatus;
-
-            if (actionResponse && actionResponse.success === false) {
-              newConnectionStatus = 'FAILED';
-            } else if (!newConnectionStatus) {
-              newConnectionStatus = 'CONNECTED';
-            } else {
-              newConnectionStatus = newConnectionStatus.toUpperCase();
-            }
-
-            return {
-              ...server,
-              connectionStatus: newConnectionStatus,
-              tools: newConnectionStatus === 'FAILED' ? [] : (updatedServer?.tools || server.tools),
-              updated_at: new Date().toISOString()
-            };
-          }
-          return server;
-        });
-      });
-
-      return actionResponse;
     } catch (error) {
       throw error;
     }

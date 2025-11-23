@@ -163,6 +163,62 @@ class ConnectionStore {
       'connectedAt' in value
     );
   }
+
+  /**
+   * Validate a sessionId by checking if it's still active on the backend
+   * Removes the connection from localStorage if invalid
+   */
+  async validateAndCleanup(serverName: string): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+
+    const connection = this.get(serverName);
+    if (!connection || !connection.sessionId) {
+      return false;
+    }
+
+    try {
+      // Try to list tools using the sessionId - this validates the session
+      const response = await fetch(`/api/mcp/tool/list?sessionId=${connection.sessionId}`);
+
+      if (!response.ok) {
+        // Session is invalid, remove from localStorage
+        console.log(`[ConnectionStore] Session expired for ${serverName}, cleaning up...`);
+        this.remove(serverName);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[ConnectionStore] Failed to validate session:', error);
+      // On error, assume session is invalid and clean up
+      this.remove(serverName);
+      return false;
+    }
+  }
+
+  /**
+   * Validate all stored connections and clean up expired ones
+   * Returns a list of valid server names
+   */
+  async validateAllAndCleanup(): Promise<string[]> {
+    const connections = this.getAll();
+    const validServers: string[] = [];
+
+    // Validate all connections in parallel
+    const validationPromises = Object.keys(connections).map(async (serverName) => {
+      const isValid = await this.validateAndCleanup(serverName);
+      if (isValid) {
+        validServers.push(serverName);
+      }
+      return { serverName, isValid };
+    });
+
+    await Promise.all(validationPromises);
+
+    console.log('[ConnectionStore] Validated connections. Valid:', validServers.length, 'Total:', Object.keys(connections).length);
+
+    return validServers;
+  }
 }
 
 // Export singleton instance

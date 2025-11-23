@@ -405,6 +405,14 @@ export default function McpClientLayout({
     return text.length > maxLength ? text.slice(0, maxLength) + "…" : text;
   };
 
+  // Calculate total active (connected) servers count from connectionStore
+  const activeServersCount = useMemo(() => {
+    const storedConnections = connectionStore.getAll();
+    // Count connections with CONNECTED status
+    return Object.values(storedConnections).filter(
+      (conn) => conn.connectionStatus === 'CONNECTED'
+    ).length;
+  }, [publicServers, userServers]); // Re-calculate when servers update
 
   if (currentError) {
     return (
@@ -477,7 +485,15 @@ export default function McpClientLayout({
                         className="hidden dark:block"
                       />
                     </div>
-                    <span className="font-medium text-sm">Servers</span>
+                    <span className="font-medium text-sm">MCP's</span>
+                    {activeServersCount > 0 && (
+                      <div className="flex items-center gap-1.5 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                          {activeServersCount} active
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
