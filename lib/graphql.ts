@@ -208,20 +208,6 @@ export const REMOVE_MCP_SERVER_MUTATION = `
   }
 `;
 
-export const RESTART_MCP_SERVER_MUTATION = `
-  mutation RestartMcpServer($name: String!) {
-    restartMcpServer(name: $name) {
-      success
-      message
-      requiresAuth
-      authorizationUrl
-      state
-      server { ...McpServerFields }
-    }
-  }
-  ${MCP_SERVER_FRAGMENT}
-`;
-
 export const USER_MCP_SERVERS_QUERY = `
   query GetUserMcpServers {
     getUserMcpServers {

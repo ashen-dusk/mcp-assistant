@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import {
   Power,
-  RotateCcw,
   Play,
   Pause,
   MoreVertical,
@@ -26,7 +25,7 @@ import { McpServer } from "@/types/mcp";
 
 interface ServerManagementProps {
   server: McpServer;
-  onAction: (serverName: string, action: 'restart' | 'activate' | 'deactivate') => Promise<unknown>;
+  onAction: (serverName: string, action: 'activate' | 'deactivate') => Promise<unknown>;
   onEdit?: (server: McpServer) => void;
   onDelete?: (serverName: string) => void;
 }
@@ -34,7 +33,7 @@ interface ServerManagementProps {
 export default function ServerManagement({ server, onAction, onEdit, onDelete }: ServerManagementProps) {
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleAction = async (action: 'restart' | 'activate' | 'deactivate') => {
+  const handleAction = async (action: 'activate' | 'deactivate') => {
     setLoading(action);
 
     try {
@@ -89,8 +88,6 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
         return server.connectionStatus?.toUpperCase() === "CONNECTED";
       case 'deactivate':
         return server.connectionStatus?.toUpperCase() !== "CONNECTED";
-      case 'restart':
-        return false; // Restart is always available
       default:
         return false;
     }
@@ -190,14 +187,6 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
                 Deactivate
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              onClick={() => handleAction('restart')}
-              disabled={isActionDisabled('restart')}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Restart
-            </DropdownMenuItem>
             {onEdit && (
               <DropdownMenuItem
                 onClick={() => onEdit(server)}

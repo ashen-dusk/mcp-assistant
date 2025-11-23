@@ -63,7 +63,7 @@ interface McpClientLayoutProps {
   session: Session | null;
   onRefreshPublic: () => void;
   onRefreshUser: () => void;
-  onServerAction: (serverName: string, action: 'restart' | 'activate' | 'deactivate') => Promise<unknown>;
+  onServerAction: (serverName: string, action: 'activate' | 'deactivate') => Promise<unknown>;
   onServerAdd: (data: Record<string, unknown>) => Promise<void>;
   onServerUpdate: (data: Record<string, unknown>) => Promise<void>;
   onServerDelete: (serverName: string) => Promise<void>;

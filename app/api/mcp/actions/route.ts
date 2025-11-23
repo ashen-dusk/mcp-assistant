@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  RESTART_MCP_SERVER_MUTATION,
   SET_MCP_SERVER_ENABLED_MUTATION,
 } from "@/lib/graphql";
 
@@ -22,8 +21,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, serverName, enabled } = body;
 
-    // Handle setEnabled and restart with GraphQL
-    if (action === 'setEnabled' || action === 'restart') {
+    // Handle setEnabled with GraphQL
+    if (action === 'setEnabled') {
       let mutation = '';
       let variables: Record<string, unknown> = {};
 
@@ -31,10 +30,6 @@ export async function POST(request: NextRequest) {
         case 'setEnabled':
           mutation = SET_MCP_SERVER_ENABLED_MUTATION;
           variables = { serverName, enabled };
-          break;
-        case 'restart':
-          mutation = RESTART_MCP_SERVER_MUTATION;
-          variables = { name: serverName };
           break;
       }
 
