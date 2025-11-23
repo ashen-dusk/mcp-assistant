@@ -5,6 +5,8 @@ import ChatInput from "../../components/playground/ChatInput";
 import { usePushToTalk } from "@/hooks/usePushToTalk";
 import { Message } from "@copilotkit/shared";
 import { CopilotKitCSSProperties } from "@copilotkit/react-ui";
+import CustomUserMessage from "@/components/custom/CustomUserMessage";
+import CustomAssistantMessage from "@/components/custom/CustomAssistantMessage";
 import HumanInTheLoop from "@/components/playground/HumanInTheLoop";
 import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
@@ -60,9 +62,10 @@ const PlaygroundPage = () => {
           title: "MCP Playground",
           placeholder: "Ask about your connected servers...",
         }}
-        className="h-[80vh] rounded-md"
+        className="h-[85vh] rounded-md"
         Input={ChatInputWrapper}
-        AssistantMessage={AssistantMessage}
+        UserMessage={CustomUserMessage}
+        AssistantMessage={CustomAssistantMessage}
       />
     </div>
   );
