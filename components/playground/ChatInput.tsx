@@ -306,7 +306,7 @@ export default function ChatInput({
           {/* Parent container with two children */}
           <div className="flex flex-col">
             {/* First child: Textarea for prompt */}
-            <div className="flex-1 px-3 sm:px-4 pt-3 sm:pt-4">
+            <div className="flex-1 px-2 sm:px-2 pt-2 sm:pt-2">
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -329,7 +329,7 @@ export default function ChatInput({
             </div>
 
             {/* Second child: MCP button, assistant, model, send button, etc. */}
-            <div className="flex items-center justify-between gap-2 px-3 sm:px-4 pb-3 sm:pb-4">
+            <div className="flex items-center justify-between gap-2 px-2 sm:px-2 pb-2 sm:pb-2">
               {/* Left side: MCP button */}
               <div className="flex items-center gap-2">
                 <MCPToolsDropdown

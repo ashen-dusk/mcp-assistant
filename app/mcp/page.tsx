@@ -23,17 +23,6 @@ function McpPageContent() {
   const [endCursor, setEndCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // // Validate and cleanup expired sessions on mount
-  // useEffect(() => {
-  //   const validateSessions = async () => {
-  //     console.log('[MCP Page] Validating stored sessions...');
-  //     const validServers = await connectionStore.getValidConnections();
-  //     console.log('[MCP Page] Valid sessions:', validServers);
-  //   };
-
-  //   validateSessions();
-  // }, []); // Run once on mount
-
   const fetchPublicServers = async (reset = true) => {
     if (reset) {
       setPublicLoading(true);
