@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Retrieve client from session store
-    const client = sessionStore.getClient(sessionId);
+    const client = await sessionStore.getClient(sessionId);
     if (!client) {
       return NextResponse.json(
         {

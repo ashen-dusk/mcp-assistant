@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, serverName, enabled } = body;
+    const { action, serverName, enabled, sessionId, serverUrl } = body;
 
     // Handle setEnabled with GraphQL
     if (action === 'setEnabled') {
@@ -67,28 +67,31 @@ export async function POST(request: NextRequest) {
 
     // Handle deactivate with session store
     if (action === 'deactivate') {
-      // Get the session ID for this server
-      const sessionId = sessionStore.getServerSession(serverName);
-
-      if (sessionId) {
-        // Call disconnect API
-        const disconnectResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/mcp/auth/disconnect`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            sessionId: sessionId,
-          }),
-        });
-
-        if (!disconnectResponse.ok) {
-          throw new Error('Failed to disconnect from server');
-        }
-
-        // Remove from session store
-        sessionStore.removeServerSession(serverName);
+      if (!sessionId || !serverUrl) {
+        return NextResponse.json(
+          { errors: [{ message: "sessionId and serverUrl are required for deactivate action" }] },
+          { status: 400 }
+        );
       }
+
+      // Call disconnect API
+      const disconnectResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/mcp/auth/disconnect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+        }),
+      });
+
+      if (!disconnectResponse.ok) {
+        throw new Error('Failed to disconnect from server');
+      }
+
+      // Remove from session store
+      // Use serverUrl as key since it's unique (serverName can be duplicate)
+      await sessionStore.removeServerSession(sessionId, serverUrl);
 
       return NextResponse.json({
         data: {

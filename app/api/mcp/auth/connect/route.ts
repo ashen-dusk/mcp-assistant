@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
     const sessionId = sessionStore.generateSessionId();
     let authUrl: string | null = null;
 
-    // Create state object with sessionId and serverName
-    const stateData = JSON.stringify({ sessionId, serverName });
+    // Create state object with sessionId, serverName, and serverUrl
+    const stateData = JSON.stringify({ sessionId, serverName, serverUrl });
 
     // Normalize transport type (default to streamable_http if not specified)
     let normalizedTransport: 'sse' | 'streamable_http' = 'streamable_http';
@@ -77,15 +77,12 @@ export async function POST(request: NextRequest) {
       await client.connect();
 
       // Connection successful, save client to session store
-      sessionStore.setClient(sessionId, client);
+      await sessionStore.setClient(sessionId, client);
 
-      // If serverName is provided, also store the server-to-session mapping
-      if (serverName) {
-        sessionStore.setServerSession(serverName, sessionId);
-        console.log('[Connect API] Connection successful, sessionId:', sessionId, 'server:', serverName);
-      } else {
-        console.log('[Connect API] Connection successful, sessionId:', sessionId);
-      }
+      // Store the serverUrl-to-session mapping
+      // Use serverUrl as key since it's unique (serverName can be duplicate)
+      await sessionStore.setServerSession(sessionId, serverUrl, sessionId);
+      console.log('[Connect API] Connection successful, sessionId:', sessionId, 'serverUrl:', serverUrl);
 
       return NextResponse.json({
         success: true,
@@ -97,7 +94,7 @@ export async function POST(request: NextRequest) {
         // OAuth authorization required
         console.log('[Connect API] OAuth required. AuthUrl:', authUrl);
         if (authUrl) {
-          sessionStore.setClient(sessionId, client);
+          await sessionStore.setClient(sessionId, client);
           return NextResponse.json(
             {
               requiresAuth: true,

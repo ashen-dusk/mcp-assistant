@@ -12,7 +12,7 @@
  * const sessionId = sessionStore.generateSessionId();
  * const client = new MCPOAuthClient(serverUrl, callbackUrl, onRedirect);
  * await client.connect();
- * sessionStore.setClient(sessionId, client);
+ * await sessionStore.setClient(sessionId, client);
  * ```
  */
 

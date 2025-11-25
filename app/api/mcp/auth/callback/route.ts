@@ -57,21 +57,23 @@ async function handleCallback(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
-    // Parse state JSON to get sessionId and serverName
+    // Parse state JSON to get sessionId, serverName, and serverUrl
     let sessionId: string;
     let serverName: string | undefined;
+    let serverUrl: string | undefined;
 
     try {
       const stateData = JSON.parse(state);
       sessionId = stateData.sessionId;
       serverName = stateData.serverName;
+      serverUrl = stateData.serverUrl;
     } catch {
       // Fallback: treat state as plain sessionId for backward compatibility
       sessionId = state;
     }
 
     // Retrieve client from session store
-    const client = sessionStore.getClient(sessionId);
+    const client = await sessionStore.getClient(sessionId);
     if (!client) {
       const errorUrl = new URL('/mcp', request.url);
       if (serverName) {
@@ -86,9 +88,10 @@ async function handleCallback(request: NextRequest) {
       // Complete OAuth authorization with the code
       await client.finishAuth(code);
 
-      // Store server-to-session mapping if serverName is provided
-      if (serverName) {
-        sessionStore.setServerSession(serverName, sessionId);
+      // Store server-to-session mapping if serverUrl is provided
+      // Use serverUrl as key since it's unique (serverName can be duplicate)
+      if (serverUrl) {
+        await sessionStore.setServerSession(sessionId, serverUrl, sessionId);
       }
 
       // Redirect back to MCP page with success parameters

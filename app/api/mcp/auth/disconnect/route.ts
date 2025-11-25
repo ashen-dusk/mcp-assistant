@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if session exists
-    const client = sessionStore.getClient(sessionId);
+    const client = await sessionStore.getClient(sessionId);
     if (!client) {
       return NextResponse.json(
         { error: 'Invalid session ID or session already disconnected' },
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Remove client from session store (this also calls disconnect)
-    sessionStore.removeClient(sessionId);
+    await sessionStore.removeClient(sessionId);
 
     return NextResponse.json({
       success: true,
