@@ -72,9 +72,23 @@ export default function ToolExecutionPanel({
     return null;
   };
 
-  const inputSchema = tool ? parseSchema((tool as any).inputSchema) : null;
-  const outputSchema = tool ? parseSchema((tool as any).outputSchema) : null;
+  const inputSchema = tool ? parseSchema(tool.inputSchema) : null;
+  const outputSchema = tool ? parseSchema(tool.outputSchema) : null;
   const schemaProperties = inputSchema?.properties || {};
+
+  // Helper function to escape Windows paths in JSON strings
+  const fixWindowsPaths = (jsonString: string): string => {
+    try {
+      // Try to parse first - if it works, no need to fix
+      JSON.parse(jsonString);
+      return jsonString;
+    } catch {
+      // Replace unescaped backslashes with escaped ones
+      // This regex looks for backslashes that aren't already escaped
+      const fixed = jsonString.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+      return fixed;
+    }
+  };
 
   const handleCall = async () => {
     if (!tool) {
@@ -90,10 +104,23 @@ export default function ToolExecutionPanel({
       let toolInput: Record<string, unknown>;
       try {
         toolInput = JSON.parse(inputJson);
-      } catch {
-        toast.error("Invalid JSON input");
-        setIsSubmitting(false);
-        return;
+      } catch (parseError) {
+        // Try to auto-fix Windows paths
+        try {
+          const fixedJson = fixWindowsPaths(inputJson);
+          toolInput = JSON.parse(fixedJson);
+          // Update the input with the fixed version
+          setInputJson(fixedJson);
+          toast.success("Auto-fixed Windows paths in JSON");
+        } catch {
+          toast.error(
+            "Invalid JSON. For Windows paths, use either:\n" +
+            '• Double backslashes: "C:\\\\Users\\\\file.txt"\n' +
+            '• Forward slashes: "C:/Users/file.txt"'
+          );
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Get sessionId from localStorage
@@ -324,12 +351,31 @@ export default function ToolExecutionPanel({
 
           {/* Input */}
           <div>
-            <label className="text-sm font-medium">Tool Input (JSON)</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium">Tool Input (JSON)</label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const fixed = fixWindowsPaths(inputJson);
+                  if (fixed !== inputJson) {
+                    setInputJson(fixed);
+                    toast.success("Windows paths escaped");
+                  } else {
+                    toast("No paths to fix");
+                  }
+                }}
+                className="h-7 text-xs cursor-pointer"
+                title="Automatically escape Windows backslashes in paths"
+              >
+                Fix Paths
+              </Button>
+            </div>
             <textarea
               value={inputJson}
               onChange={(e) => setInputJson(e.target.value)}
               placeholder='{"key": "value"}'
-              className={`w-full mt-2 font-mono text-xs h-24 p-3 rounded-md border focus:outline-none focus:ring-2 resize-none overflow-x-hidden scrollbar-minimal ${
+              className={`w-full font-mono text-xs h-24 p-3 rounded-md border focus:outline-none focus:ring-2 resize-none overflow-x-hidden scrollbar-minimal ${
                 theme === 'dark'
                   ? 'border-slate-700 bg-slate-900 text-gray-200 placeholder:text-gray-600 focus:ring-slate-600'
                   : 'border-slate-300 bg-slate-50 text-slate-900 placeholder:text-slate-500 focus:ring-slate-400'
