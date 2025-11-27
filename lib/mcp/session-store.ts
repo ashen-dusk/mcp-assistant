@@ -232,14 +232,29 @@ export class SessionStore {
     );
 
     // If OAuth tokens don't exist, this session is mid-OAuth flow
-    // Do NOT try to connect - just return the client for the callback to use
+    // Need to restore OAuth provider state (especially code verifier) for finishAuth to work
     if (!sessionData.tokens) {
       console.log(`⚠️ Session has no tokens (mid-OAuth flow): ${sessionData.sessionId}`);
-      // Still need to initialize the client for OAuth callback
+
+      // Initialize the client for OAuth callback
       await client.connect().catch((err) => {
         // Expected to fail if OAuth is required - that's OK for mid-flow sessions
         console.log(`🔐 Client awaiting OAuth (expected): ${err.message}`);
       });
+
+      // CRITICAL: Inject saved OAuth state (especially code verifier) for finishAuth
+      const oauthProvider = client.oauthProvider;
+      if (oauthProvider) {
+        if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
+          oauthProvider.saveClientInformation(sessionData.clientInformation);
+          console.log(`✅ Restored client info for mid-OAuth: ${sessionData.clientInformation.client_id}`);
+        }
+        if (sessionData.codeVerifier) {
+          oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
+          console.log(`✅ Restored code verifier for mid-OAuth (required for finishAuth)`);
+        }
+      }
+
       return client;
     }
 
@@ -305,7 +320,7 @@ export class SessionStore {
       await this.redis.del(sessionKey);
 
       // Remove all server URL mappings for this session
-      const pattern = `${this.KEY_PREFIX}session:${sessionId}:url:*`;
+      const pattern = `${this.KEY_PREFIX}${sessionId}:url:*`;
       const keys = await this.redis.keys(pattern);
       if (keys.length > 0) {
         await this.redis.del(...keys);
@@ -388,7 +403,7 @@ export class SessionStore {
 
     await this.ensureConnected();
     try {
-      const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
+      const serverKey = `${this.KEY_PREFIX}${sessionId}:url:${serverUrl}`;
       await this.redis.setex(serverKey, this.SESSION_TTL, sessionIdValue);
       console.log(`✅ Redis SET: ${serverKey} -> ${sessionIdValue} (TTL: ${this.SESSION_TTL}s)`);
     } catch (error) {
@@ -413,7 +428,7 @@ export class SessionStore {
     // If not in cache, try Redis
     await this.ensureConnected();
     try {
-      const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
+      const serverKey = `${this.KEY_PREFIX}${sessionId}:url:${serverUrl}`;
       storedSessionId = await this.redis.get(serverKey);
       if (storedSessionId) {
         console.log(`✅ Redis GET: ${serverKey} -> ${storedSessionId}`);
@@ -453,7 +468,7 @@ export class SessionStore {
 
     await this.ensureConnected();
     try {
-      const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
+      const serverKey = `${this.KEY_PREFIX}${sessionId}:url:${serverUrl}`;
       await this.redis.del(serverKey);
     } catch (error) {
       console.error('❌ Failed to remove server mapping from Redis:', error);
