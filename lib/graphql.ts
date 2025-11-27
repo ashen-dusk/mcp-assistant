@@ -20,7 +20,7 @@ export const MCP_SERVER_FRAGMENT = `
     transport
     url
     command
-    category {
+    categories {
     id
     name
     slug   
@@ -304,7 +304,7 @@ export const DELETE_ASSISTANT_MUTATION = `
 
 /**
  * Reusable query for searching MCP servers with filters.
- * Supports filtering by name (case-insensitive), category, and other criteria.
+ * Supports filtering by name (case-insensitive), categories, and other criteria.
  * Uses cursor-based pagination for efficient large result sets.
  */
 export const SEARCH_MCP_SERVERS_QUERY = `
