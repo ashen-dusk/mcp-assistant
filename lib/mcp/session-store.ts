@@ -30,57 +30,66 @@ interface SessionData {
 export class SessionStore {
   private clients = new Map<string, MCPOAuthClient>();
   private serverToSession = new Map<string, Map<string, string>>(); // sessionId -> (serverUrl -> sessionId)
-  private redis: Redis | null = null;
-  private useRedis = false;
-  private readonly SESSION_TTL = 86400; // 24 hours in seconds
+  private redis: Redis;
+  private redisReady: Promise<void>;
+  private readonly SESSION_TTL = 43200; // 12 hours in seconds
   private readonly KEY_PREFIX = 'mcp:session:';
 
   constructor() {
-    this.initRedis();
-  }
-
-  /**
-   * Initialize Redis connection for production
-   */
-  private initRedis(): void {
     const redisUrl = process.env.REDIS_URL || process.env.NEXT_PUBLIC_REDIS_URL;
 
     if (!redisUrl) {
-      console.log('🔄 Session Store: Using in-memory storage (Redis URL not configured)');
-      return;
+      throw new Error('REDIS_URL environment variable is required');
     }
 
+    this.redis = new Redis(redisUrl, {
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      maxRetriesPerRequest: 3,
+      lazyConnect: false, // Connect immediately
+      enableReadyCheck: true,
+      connectTimeout: 10000,
+    });
+
+    // Create promise that resolves when Redis is ready
+    this.redisReady = new Promise((resolve, reject) => {
+      if (this.redis.status === 'ready') {
+        console.log('✅ Session Store: Redis connected');
+        resolve();
+        return;
+      }
+
+      this.redis.once('ready', () => {
+        console.log('✅ Session Store: Redis connected');
+        resolve();
+      });
+
+      this.redis.once('error', (err) => {
+        console.error('❌ Session Store: Redis connection error:', err.message);
+        reject(err);
+      });
+    });
+
+    this.redis.on('error', (err) => {
+      console.error('❌ Session Store: Redis error:', err.message);
+    });
+
+    this.redis.on('reconnecting', () => {
+      console.log('🔄 Session Store: Reconnecting to Redis...');
+    });
+  }
+
+  /**
+   * Ensure Redis is ready before operations
+   */
+  private async ensureConnected(): Promise<void> {
     try {
-      this.redis = new Redis(redisUrl, {
-        retryStrategy: (times) => {
-          const delay = Math.min(times * 50, 2000);
-          return delay;
-        },
-        maxRetriesPerRequest: 3,
-        lazyConnect: true,
-      });
-
-      this.redis.connect().then(() => {
-        this.useRedis = true;
-        console.log('✅ Session Store: Connected to Redis');
-      }).catch((err) => {
-        console.warn('⚠️ Session Store: Redis connection failed, falling back to in-memory:', err.message);
-        this.useRedis = false;
-        this.redis = null;
-      });
-
-      this.redis.on('error', (err) => {
-        console.error('❌ Session Store: Redis error:', err.message);
-      });
-
-      this.redis.on('reconnecting', () => {
-        console.log('🔄 Session Store: Reconnecting to Redis...');
-      });
-
+      await this.redisReady;
     } catch (error) {
-      console.warn('⚠️ Session Store: Redis initialization failed, using in-memory storage:', error);
-      this.redis = null;
-      this.useRedis = false;
+      // Redis connection failed, but continue (will throw on actual operations)
+      console.error('❌ Redis not ready:', error);
     }
   }
 
@@ -98,46 +107,45 @@ export class SessionStore {
     this.clients.set(sessionId, client);
 
     // Store full session data in Redis for serverless persistence
-    if (this.useRedis && this.redis) {
+    await this.ensureConnected();
+
+    try {
+      const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
+
+      // Extract OAuth data from client if available
+      let tokens, clientInformation, codeVerifier;
       try {
-        const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
-
-        // Extract OAuth data from client if available
-        let tokens, clientInformation, codeVerifier;
-        try {
-          const oauthProvider = client.oauthProvider;
-          if (oauthProvider) {
-            tokens = oauthProvider.tokens();
-            clientInformation = oauthProvider.clientInformation();
-            try {
-              codeVerifier = oauthProvider.codeVerifier();
-            } catch {
-              // codeVerifier might not be set yet
-            }
+        const oauthProvider = client.oauthProvider;
+        if (oauthProvider) {
+          tokens = oauthProvider.tokens();
+          clientInformation = oauthProvider.clientInformation();
+          try {
+            codeVerifier = oauthProvider.codeVerifier();
+          } catch {
+            // codeVerifier might not be set yet
           }
-        } catch (e) {
-          // OAuth provider might not be initialized yet
         }
-
-        const sessionData: SessionData = {
-          sessionId,
-          serverUrl: serverUrl || client.getServerUrl(),
-          callbackUrl: callbackUrl || client.getCallbackUrl(),
-          transportType: transportType || 'streamable_http',
-          createdAt: Date.now(),
-          active: true,
-          tokens,
-          clientInformation,
-          codeVerifier,
-        };
-
-        await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
-        console.log(`✅ Redis SET client data: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
-      } catch (error) {
-        console.error('❌ Failed to store session in Redis:', error);
+      } catch (e) {
+        // OAuth provider might not be initialized yet
       }
-    } else {
-      console.log(`📦 In-memory SET client: sessionId=${sessionId}`);
+
+      const sessionData: SessionData = {
+        sessionId,
+        serverUrl: serverUrl || client.getServerUrl(),
+        callbackUrl: callbackUrl || client.getCallbackUrl(),
+        transportType: transportType || 'streamable_http',
+        createdAt: Date.now(),
+        active: true,
+        tokens,
+        clientInformation,
+        codeVerifier,
+      };
+
+      await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
+      console.log(`✅ Redis SET client data: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
+    } catch (error) {
+      console.error('❌ Failed to store session in Redis:', error);
+      throw error; // Re-throw to signal failure
     }
   }
 
@@ -152,60 +160,56 @@ export class SessionStore {
     if (client) {
       console.log(`✅ In-memory GET client: sessionId=${sessionId}`);
 
-      // Verify session still exists in Redis
-      if (this.useRedis && this.redis) {
-        try {
-          const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
-          const exists = await this.redis.exists(sessionKey);
-          if (!exists) {
-            // Session expired in Redis, clean up in-memory client
-            console.log(`⚠️ Redis session expired, removing client: ${sessionKey}`);
-            this.clients.delete(sessionId);
-            return null;
-          }
-          // Refresh TTL on access
-          await this.redis.expire(sessionKey, this.SESSION_TTL);
-        } catch (error) {
-          console.error('❌ Failed to verify session in Redis:', error);
+      // Verify session still exists in Redis and refresh TTL
+      await this.ensureConnected();
+      try {
+        const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
+        const exists = await this.redis.exists(sessionKey);
+        if (!exists) {
+          // Session expired in Redis, clean up in-memory client
+          console.log(`⚠️ Redis session expired, removing client: ${sessionKey}`);
+          this.clients.delete(sessionId);
+          return null;
         }
+        // Refresh TTL on access
+        await this.redis.expire(sessionKey, this.SESSION_TTL);
+      } catch (error) {
+        console.error('❌ Failed to verify session in Redis:', error);
       }
 
       return client;
     }
 
     // Client not in memory - try to recreate from Redis (serverless scenario)
-    if (this.useRedis && this.redis) {
-      try {
-        const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
-        const sessionDataStr = await this.redis.get(sessionKey);
+    await this.ensureConnected();
 
-        if (!sessionDataStr) {
-          console.log(`❓ Session not found in Redis: ${sessionKey}`);
-          return null;
-        }
+    try {
+      const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
+      const sessionDataStr = await this.redis.get(sessionKey);
 
-        const sessionData: SessionData = JSON.parse(sessionDataStr);
-        console.log(`🔄 Recreating client from Redis: ${sessionKey}`);
-
-        // Recreate the client from stored data
-        client = await this.recreateClient(sessionData);
-
-        // Store in memory for subsequent requests in this instance
-        this.clients.set(sessionId, client);
-
-        // Refresh TTL
-        await this.redis.expire(sessionKey, this.SESSION_TTL);
-
-        console.log(`✅ Client recreated successfully: ${sessionKey}`);
-        return client;
-      } catch (error) {
-        console.error('❌ Failed to recreate client from Redis:', error);
+      if (!sessionDataStr) {
+        console.log(`❓ Session not found in Redis: ${sessionKey}`);
         return null;
       }
-    }
 
-    console.log(`❓ Client not found: sessionId=${sessionId}`);
-    return null;
+      const sessionData: SessionData = JSON.parse(sessionDataStr);
+      console.log(`🔄 Recreating client from Redis: ${sessionKey}`);
+
+      // Recreate the client from stored data
+      client = await this.recreateClient(sessionData);
+
+      // Store in memory for subsequent requests in this instance
+      this.clients.set(sessionId, client);
+
+      // Refresh TTL
+      await this.redis.expire(sessionKey, this.SESSION_TTL);
+
+      console.log(`✅ Client recreated successfully: ${sessionKey}`);
+      return client;
+    } catch (error) {
+      console.error('❌ Failed to recreate client from Redis:', error);
+      return null;
+    }
   }
 
   /**
@@ -213,6 +217,8 @@ export class SessionStore {
    * Used to restore client connections in serverless environments
    */
   private async recreateClient(sessionData: SessionData): Promise<MCPOAuthClient> {
+    console.log(`🔄 Recreating client: sessionId=${sessionData.sessionId}, hasTokens=${!!sessionData.tokens}`);
+
     // Create a new client with stored configuration
     const client = new MCPOAuthClient(
       sessionData.serverUrl,
@@ -225,32 +231,58 @@ export class SessionStore {
       sessionData.transportType
     );
 
-    // If OAuth tokens exist, we need to restore the authenticated state
-    if (sessionData.tokens) {
-      console.log(`🔐 Restoring OAuth tokens for session: ${sessionData.sessionId}`);
+    // If OAuth tokens don't exist, this session is mid-OAuth flow
+    // Do NOT try to connect - just return the client for the callback to use
+    if (!sessionData.tokens) {
+      console.log(`⚠️ Session has no tokens (mid-OAuth flow): ${sessionData.sessionId}`);
+      // Still need to initialize the client for OAuth callback
+      await client.connect().catch((err) => {
+        // Expected to fail if OAuth is required - that's OK for mid-flow sessions
+        console.log(`🔐 Client awaiting OAuth (expected): ${err.message}`);
+      });
+      return client;
+    }
 
-      // Connect and restore OAuth state
+    // Tokens exist - restore authenticated connection
+    console.log(`🔐 Restoring OAuth tokens for session: ${sessionData.sessionId}`);
+
+    // First, connect (this will trigger OAuth, but we'll override with stored tokens)
+    try {
       await client.connect();
+    } catch (err) {
+      // Connection might fail initially, that's OK - we'll inject tokens
+      console.log(`🔄 Initial connect failed (will inject tokens): ${err}`);
+    }
 
-      // Inject the stored OAuth tokens directly into the provider
-      const oauthProvider = client.oauthProvider;
-      if (oauthProvider) {
-        if (sessionData.tokens) {
-          oauthProvider.saveTokens(sessionData.tokens);
-        }
-        if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
-          // Only save if it's the full client information (with redirect_uris)
-          oauthProvider.saveClientInformation(sessionData.clientInformation);
-        }
-        if (sessionData.codeVerifier) {
-          oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
-        }
+    // Inject the stored OAuth tokens and client info BEFORE connecting
+    const oauthProvider = client.oauthProvider;
+    if (oauthProvider) {
+      if (sessionData.tokens) {
+        oauthProvider.saveTokens(sessionData.tokens);
+        console.log(`✅ OAuth tokens injected: access_token=${sessionData.tokens.access_token.substring(0, 20)}...`);
+      }
+      if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
+        oauthProvider.saveClientInformation(sessionData.clientInformation);
+        console.log(`✅ OAuth client info injected: client_id=${sessionData.clientInformation.client_id}`);
+      }
+      if (sessionData.codeVerifier) {
+        oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
+      }
+    }
+
+    // Now reconnect with the restored tokens
+    try {
+      // Close any existing connection
+      if (client.isConnected()) {
+        client.disconnect();
       }
 
-      console.log(`✅ OAuth state restored for session: ${sessionData.sessionId}`);
-    } else {
-      // No OAuth tokens - connect normally (might require auth)
+      // Reconnect with authenticated provider
       await client.connect();
+      console.log(`✅ OAuth state restored and connected: ${sessionData.sessionId}`);
+    } catch (err) {
+      console.error(`❌ Failed to reconnect with restored tokens: ${err}`);
+      throw err;
     }
 
     return client;
@@ -267,20 +299,19 @@ export class SessionStore {
     }
 
     // Remove from Redis
-    if (this.useRedis && this.redis) {
-      try {
-        const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
-        await this.redis.del(sessionKey);
+    await this.ensureConnected();
+    try {
+      const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
+      await this.redis.del(sessionKey);
 
-        // Remove all server URL mappings for this session
-        const pattern = `${this.KEY_PREFIX}session:${sessionId}:url:*`;
-        const keys = await this.redis.keys(pattern);
-        if (keys.length > 0) {
-          await this.redis.del(...keys);
-        }
-      } catch (error) {
-        console.error('❌ Failed to remove session from Redis:', error);
+      // Remove all server URL mappings for this session
+      const pattern = `${this.KEY_PREFIX}session:${sessionId}:url:*`;
+      const keys = await this.redis.keys(pattern);
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
       }
+    } catch (error) {
+      console.error('❌ Failed to remove session from Redis:', error);
     }
 
     // Also remove from in-memory server mapping (iterate through nested map)
@@ -308,16 +339,16 @@ export class SessionStore {
    * Get all active session IDs
    */
   async getAllSessionIds(): Promise<string[]> {
-    if (this.useRedis && this.redis) {
-      try {
-        const pattern = `${this.KEY_PREFIX}*`;
-        const keys = await this.redis.keys(pattern);
-        return keys.map(key => key.replace(this.KEY_PREFIX, ''));
-      } catch (error) {
-        console.error('❌ Failed to get sessions from Redis:', error);
-      }
+    await this.ensureConnected();
+    try {
+      const pattern = `${this.KEY_PREFIX}*`;
+      const keys = await this.redis.keys(pattern);
+      return keys.map(key => key.replace(this.KEY_PREFIX, ''));
+    } catch (error) {
+      console.error('❌ Failed to get sessions from Redis:', error);
+      // Fallback to in-memory
+      return Array.from(this.clients.keys());
     }
-    return Array.from(this.clients.keys());
   }
 
   /**
@@ -330,16 +361,15 @@ export class SessionStore {
     this.serverToSession.clear();
 
     // Clear Redis
-    if (this.useRedis && this.redis) {
-      try {
-        const pattern = `${this.KEY_PREFIX}*`;
-        const keys = await this.redis.keys(pattern);
-        if (keys.length > 0) {
-          await this.redis.del(...keys);
-        }
-      } catch (error) {
-        console.error('❌ Failed to clear sessions from Redis:', error);
+    await this.ensureConnected();
+    try {
+      const pattern = `${this.KEY_PREFIX}*`;
+      const keys = await this.redis.keys(pattern);
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
       }
+    } catch (error) {
+      console.error('❌ Failed to clear sessions from Redis:', error);
     }
   }
 
@@ -356,16 +386,13 @@ export class SessionStore {
     }
     this.serverToSession.get(sessionId)!.set(serverUrl, sessionIdValue);
 
-    if (this.useRedis && this.redis) {
-      try {
-        const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
-        await this.redis.setex(serverKey, this.SESSION_TTL, sessionIdValue);
-        console.log(`✅ Redis SET: ${serverKey} -> ${sessionIdValue} (TTL: ${this.SESSION_TTL}s)`);
-      } catch (error) {
-        console.error('❌ Failed to store server mapping in Redis:', error);
-      }
-    } else {
-      console.log('📦 In-memory SET: sessionId=' + sessionId + ', serverUrl=' + serverUrl);
+    await this.ensureConnected();
+    try {
+      const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
+      await this.redis.setex(serverKey, this.SESSION_TTL, sessionIdValue);
+      console.log(`✅ Redis SET: ${serverKey} -> ${sessionIdValue} (TTL: ${this.SESSION_TTL}s)`);
+    } catch (error) {
+      console.error('❌ Failed to store server mapping in Redis:', error);
     }
   }
 
@@ -384,27 +411,24 @@ export class SessionStore {
     }
 
     // If not in cache, try Redis
-    if (this.useRedis && this.redis) {
-      try {
-        const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
-        storedSessionId = await this.redis.get(serverKey);
-        if (storedSessionId) {
-          console.log(`✅ Redis GET: ${serverKey} -> ${storedSessionId}`);
-          // Update in-memory cache
-          if (!this.serverToSession.has(sessionId)) {
-            this.serverToSession.set(sessionId, new Map());
-          }
-          this.serverToSession.get(sessionId)!.set(serverUrl, storedSessionId);
-          // Refresh TTL
-          await this.redis.expire(serverKey, this.SESSION_TTL);
-        } else {
-          console.log(`❓ Redis GET: ${serverKey} -> NOT FOUND`);
+    await this.ensureConnected();
+    try {
+      const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
+      storedSessionId = await this.redis.get(serverKey);
+      if (storedSessionId) {
+        console.log(`✅ Redis GET: ${serverKey} -> ${storedSessionId}`);
+        // Update in-memory cache
+        if (!this.serverToSession.has(sessionId)) {
+          this.serverToSession.set(sessionId, new Map());
         }
-      } catch (error) {
-        console.error('❌ Failed to get server mapping from Redis:', error);
+        this.serverToSession.get(sessionId)!.set(serverUrl, storedSessionId);
+        // Refresh TTL
+        await this.redis.expire(serverKey, this.SESSION_TTL);
+      } else {
+        console.log(`❓ Redis GET: ${serverKey} -> NOT FOUND`);
       }
-    } else {
-      console.log(`❓ Not found: sessionId=${sessionId}, serverUrl=${serverUrl}`);
+    } catch (error) {
+      console.error('❌ Failed to get server mapping from Redis:', error);
     }
 
     return storedSessionId;
@@ -427,13 +451,12 @@ export class SessionStore {
       this.serverToSession.delete(sessionId);
     }
 
-    if (this.useRedis && this.redis) {
-      try {
-        const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
-        await this.redis.del(serverKey);
-      } catch (error) {
-        console.error('❌ Failed to remove server mapping from Redis:', error);
-      }
+    await this.ensureConnected();
+    try {
+      const serverKey = `${this.KEY_PREFIX}session:${sessionId}:url:${serverUrl}`;
+      await this.redis.del(serverKey);
+    } catch (error) {
+      console.error('❌ Failed to remove server mapping from Redis:', error);
     }
   }
 
@@ -451,7 +474,7 @@ export class SessionStore {
    * Cleanup expired sessions (should be called periodically)
    */
   async cleanupExpiredSessions(): Promise<void> {
-    if (!this.useRedis || !this.redis) return;
+    await this.ensureConnected();
 
     try {
       const pattern = `${this.KEY_PREFIX}*`;
@@ -472,7 +495,7 @@ export class SessionStore {
    * Get Redis connection status
    */
   isRedisConnected(): boolean {
-    return this.useRedis && this.redis?.status === 'ready';
+    return this.redis?.status === 'ready';
   }
 
   /**
