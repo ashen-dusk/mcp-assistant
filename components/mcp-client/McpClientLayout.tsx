@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { McpServer } from "@/types/mcp";
 import ServerManagement from "./ServerManagement";
+import { ServerIcon } from "./ServerIcon";
 import ToolsExplorer from "./ToolsExplorer";
 import ToolExecutionPanel from "./ToolExecutionPanel";
 import { useSearchParams } from "next/navigation";
@@ -632,7 +633,12 @@ export default function McpClientLayout({
                                     title={`Status: ${server.connectionStatus || "Unknown"
                                       }`}
                                   />
-                                  <Server className="h-3 w-3 text-muted-foreground" />
+                                  <ServerIcon
+                                    serverName={server.name}
+                                    serverUrl={server.url}
+                                    size={16}
+                                    className="flex-shrink-0"
+                                  />
                                   <span className="font-medium text-sm truncate">
                                     {server.name}
                                   </span>
@@ -767,7 +773,12 @@ export default function McpClientLayout({
                                         title={`Status: ${server.connectionStatus || "Unknown"
                                           }`}
                                       />
-                                      <Server className="h-3 w-3 text-muted-foreground" />
+                                      <ServerIcon
+                                        serverName={server.name}
+                                        serverUrl={server.url}
+                                        size={16}
+                                        className="flex-shrink-0"
+                                      />
                                       <h3 className="font-medium text-sm truncate">
                                         {server.name}
                                       </h3>
@@ -853,6 +864,12 @@ export default function McpClientLayout({
                       {/* Header with title and actions */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
+                          <ServerIcon
+                            serverName={selectedServer.name}
+                            serverUrl={selectedServer.url}
+                            size={32}
+                            className="flex-shrink-0"
+                          />
                           <h2 className="text-xl sm:text-2xl font-semibold">{selectedServer.name}</h2>
                         </div>
 
@@ -868,13 +885,10 @@ export default function McpClientLayout({
 
                       {/* Description - Full Width */}
                       {selectedServer.description && (
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                          <div className="text-sm prose prose-sm max-w-none [&>*]:text-foreground/80 [&>p]:text-foreground/75 [&>strong]:font-semibold [&>strong]:text-foreground [&>em]:italic [&>em]:text-foreground/80 [&>code]:bg-muted [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:text-foreground/90 [&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 hover:[&>a]:text-primary/80 [&>ul]:text-foreground/75 [&>ol]:text-foreground/75 [&>li]:text-foreground/75">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {selectedServer.description}
-                            </ReactMarkdown>
-                          </div>
+                        <div className="text-sm prose prose-sm max-w-none [&>*]:text-foreground/80 [&>p]:text-foreground/75 [&>strong]:font-semibold [&>strong]:text-foreground [&>em]:italic [&>em]:text-foreground/80 [&>code]:bg-muted [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:text-foreground/90 [&>a]:text-primary [&>a]:underline [&>a]:underline-offset-2 hover:[&>a]:text-primary/80 [&>ul]:text-foreground/75 [&>ol]:text-foreground/75 [&>li]:text-foreground/75">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {selectedServer.description}
+                          </ReactMarkdown>
                         </div>
                       )}
 
@@ -882,31 +896,30 @@ export default function McpClientLayout({
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
                         {/* Basic Info */}
                         <div className="space-y-3">
-                          <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
+                          <h3 className="text-xs font-medium text-muted-foreground">Basic Information</h3>
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Server className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex items-center gap-2 text-xs">
+                              <Server className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="font-medium">Transport:</span>
                               <span className="text-muted-foreground">{selectedServer.transport}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Activity className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">Status:</span>
-                              <Badge variant={selectedServer.connectionStatus === "CONNECTED" ? "default" : "secondary"}>
-                                {selectedServer.connectionStatus || "Unknown"}
-                              </Badge>
-                            </div>
+                            {selectedServer.id && (
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="font-medium whitespace-nowrap">ID:</span>
+                                <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono truncate flex-1 min-w-0" title={selectedServer.id}>{selectedServer.id}</code>
+                              </div>
+                            )}
 
-                            <div className="flex items-center gap-2 text-sm">
+                            <div className="flex items-center gap-2 text-xs">
                               {selectedServer.requiresOauth2 ? (
-                                <Lock className="h-4 w-4 text-muted-foreground" />
+                                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                               ) : (
-                                <LockOpen className="h-4 w-4 text-muted-foreground" />
+                                <LockOpen className="h-3.5 w-3.5 text-muted-foreground" />
                               )}
                               <span className="font-medium">Server type:</span>
                               {selectedServer.requiresOauth2 ? (
                                 <div className="flex items-center gap-1">
-                                  <Shield className="h-4 w-4 text-amber-500" />
+                                  <Shield className="h-3.5 w-3.5 text-amber-500" />
                                   <span className="text-muted-foreground">OAuth2</span>
                                 </div>
                               ) : (
@@ -918,18 +931,19 @@ export default function McpClientLayout({
 
                         {/* Connection Details */}
                         <div className="space-y-3">
-                          <h3 className="text-sm font-medium text-muted-foreground">Connection Details</h3>
+                          <h3 className="text-xs font-medium text-muted-foreground">Connection Details</h3>
                           <div className="space-y-2">
-                            {selectedServer.id && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <span className="font-medium whitespace-nowrap">ID:</span>
-                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono truncate flex-1 min-w-0" title={selectedServer.id}>{selectedServer.id}</code>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2 text-xs">
+                              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-medium">Status:</span>
+                              <Badge variant={selectedServer.connectionStatus === "CONNECTED" ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                                {selectedServer.connectionStatus || "Unknown"}
+                              </Badge>
+                            </div>
                             {selectedServer.url && (
-                              <div className="flex items-center gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-xs">
                                 <span className="font-medium whitespace-nowrap">URL:</span>
-                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono truncate flex-1 min-w-0" title={selectedServer.url}>{selectedServer.url}</code>
+                                <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono truncate flex-1 min-w-0" title={selectedServer.url}>{selectedServer.url}</code>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -938,7 +952,7 @@ export default function McpClientLayout({
                                     setUrlCopied(true);
                                     setTimeout(() => setUrlCopied(false), 2000);
                                   }}
-                                  className="h-6 w-6 p-0 hover:bg-accent cursor-pointer flex-shrink-0"
+                                  className="h-5 w-5 p-0 hover:bg-accent cursor-pointer flex-shrink-0"
                                 >
                                   {urlCopied ? (
                                     <Check className="h-3 w-3 text-green-500" />
@@ -948,12 +962,6 @@ export default function McpClientLayout({
                                 </Button>
                               </div>
                             )}
-                            {selectedServer.command && (
-                              <div className="flex items-start gap-2 text-sm">
-                                <span className="font-medium whitespace-nowrap">Command:</span>
-                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono break-all">{selectedServer.command}</code>
-                              </div>
-                            )}
                             {(() => {
                               const connection = connectionStore.get(selectedServer.name);
                               if (!connection) return null;
@@ -961,9 +969,10 @@ export default function McpClientLayout({
                               return (
                                 <>
                                   {connection.connectedAt && (
-                                    <div className="flex items-center gap-2 text-sm">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                                       <span className="font-medium whitespace-nowrap">Connected At:</span>
-                                      <span className="text-muted-foreground text-xs">
+                                      <span className="text-muted-foreground text-[10px]">
                                         {new Date(connection.connectedAt).toLocaleString('en-US', {
                                           month: 'short',
                                           day: 'numeric',
@@ -982,25 +991,26 @@ export default function McpClientLayout({
 
                         {/* Metadata */}
                         <div className="space-y-3">
-                          <h3 className="text-sm font-medium text-muted-foreground">Metadata</h3>
+                          <h3 className="text-xs font-medium text-muted-foreground">Metadata</h3>
                           <div className="space-y-2">
                             {selectedServer.createdAt && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex items-center gap-2 text-xs">
+                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="font-medium">Added on:</span>
                                 <span className="text-muted-foreground">{new Date(selectedServer.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                               </div>
                             )}
                             {selectedServer.owner && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <UserIcon className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex items-center gap-2 text-xs">
+                                <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="font-medium">By:</span>
                                 <span className="text-muted-foreground">{selectedServer.owner}</span>
                               </div>
                             )}
                             {selectedServer.isPublic !== undefined && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Globe className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex items-center gap-2 text-xs">
+                                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="font-medium">Visibility:</span>
                                 <span className="text-muted-foreground">{selectedServer.isPublic ? "Public Server" : "Private Server"}</span>
                               </div>
                             )}
