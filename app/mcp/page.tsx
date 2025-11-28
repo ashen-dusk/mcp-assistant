@@ -93,11 +93,9 @@ function McpPageContent() {
 
       // Merge new servers with stored connection state from localStorage
       const storedConnections = connectionStore.getAll();
-      console.log('[Load More] Stored connections:', Object.keys(storedConnections));
       const mergedNewServers = newServers.map((server: McpServer) => {
         const stored = storedConnections[server.name];
         if (stored && stored.connectionStatus === 'CONNECTED') {
-          console.log('[Load More] Merging connection state for:', server.name);
           return {
             ...server,
             connectionStatus: stored.connectionStatus,
@@ -199,11 +197,6 @@ function McpPageContent() {
           }
         }
 
-        console.log('[MCP Connect] Server:', server.name);
-        console.log('[MCP Connect] Transport:', server.transport);
-        console.log('[MCP Connect] Original URL:', server.url);
-        console.log('[MCP Connect] Normalized URL:', normalizedUrl);
-
         // Step 2: Connect to MCP server
         const callbackUrl = `${window.location.origin}/api/mcp/auth/callback`;
         const connectResponse = await fetch('/api/mcp/auth/connect', {
@@ -235,14 +228,11 @@ function McpPageContent() {
         // Step 3: Fetch tools from connected server
         let tools: ToolInfo[] = [];
         if (connectResult.success && connectResult.sessionId) {
-          console.log('[MCP Connect] Fetching tools for sessionId:', connectResult.sessionId);
           const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);
-          console.log('[MCP Connect] Tools response status:', toolsResponse.status);
 
           if (toolsResponse.ok) {
             const toolsResult = await toolsResponse.json();
             tools = toolsResult.tools || [];
-            console.log('[MCP Connect] Received', tools.length, 'tools');
           } else {
             const errorData = await toolsResponse.json();
             console.error('[MCP Connect] Failed to fetch tools:', errorData);
@@ -258,7 +248,6 @@ function McpPageContent() {
             transport: server.transport,
             url: server.url,
           });
-          console.log('[MCP Connect] Stored connection in localStorage');
         }
 
         // Update local state
@@ -315,7 +304,6 @@ function McpPageContent() {
 
         // Remove from localStorage
         connectionStore.remove(server.name);
-        console.log('[MCP Deactivate] Removed connection from localStorage');
 
         // Update local state
         const updateServer = (s: McpServer) => {
@@ -430,7 +418,6 @@ function McpPageContent() {
 
     if (step === 'success' && sessionId && serverName) {
       // OAuth authorization completed, fetch server config then tools
-      console.log('[OAuth Callback] Processing OAuth callback for', serverName, 'sessionId:', sessionId);
 
       // First, fetch server config to get transport and url
       fetch('/api/graphql', {
@@ -468,7 +455,6 @@ function McpPageContent() {
             .then(res => res.json())
             .then(data => {
               const tools = data.tools || [];
-              console.log('[OAuth Callback] Received tools:', tools.length);
 
               // Store connection in localStorage with transport and url
               connectionStore.set(serverName, {
@@ -478,7 +464,6 @@ function McpPageContent() {
                 transport: serverConfig.transport,
                 url: serverConfig.url,
               });
-              console.log('[OAuth Callback] Stored connection in localStorage with transport:', serverConfig.transport);
 
               // Update server state with connection status and tools
               const updateServer = (server: McpServer) => {

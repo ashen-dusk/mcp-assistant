@@ -84,7 +84,6 @@ class ConnectionStore {
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
-      console.log('[ConnectionStore] Stored connection for:', serverName, 'sessionId:', connection.sessionId);
     } catch (error) {
       console.error('[ConnectionStore] Failed to store connection:', error);
     }
@@ -116,7 +115,6 @@ class ConnectionStore {
       const connections = this.getAll();
       delete connections[serverName];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
-      console.log('[ConnectionStore] Removed connection for:', serverName);
     } catch (error) {
       console.error('[ConnectionStore] Failed to remove connection:', error);
     }
@@ -130,7 +128,6 @@ class ConnectionStore {
 
     try {
       localStorage.removeItem(STORAGE_KEY);
-      console.log('[ConnectionStore] Cleared all connections');
     } catch (error) {
       console.error('[ConnectionStore] Failed to clear connections:', error);
     }
@@ -186,7 +183,6 @@ class ConnectionStore {
 
       if (!response.ok) {
         // Session is invalid, remove from localStorage
-        console.log(`[ConnectionStore] Session expired for ${serverName}, cleaning up...`);
         this.remove(serverName);
         return null;
       }
@@ -223,8 +219,6 @@ class ConnectionStore {
     });
 
     await Promise.all(validationPromises);
-
-    console.log('[ConnectionStore] Validated connections. Valid:', validServersData.size, 'Total:', Object.keys(connections).length);
 
     return validServersData;
   }
