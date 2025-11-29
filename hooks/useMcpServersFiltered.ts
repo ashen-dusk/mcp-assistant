@@ -6,7 +6,7 @@ import { gql } from "@apollo/client";
 import { McpServer, Category } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { MCP_SERVERS_QUERY } from "@/lib/graphql";
-import { useConnectionContext } from "@/contexts/ConnectionContext";
+import { useConnectionContext } from "@/components/providers/ConnectionProvider";
 
 const GET_MCP_SERVERS = gql`${MCP_SERVERS_QUERY}`;
 

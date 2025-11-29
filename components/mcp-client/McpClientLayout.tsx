@@ -26,7 +26,7 @@ import { ServerPlaceholder } from "./ServerPlaceholder";
 import ToolsExplorer from "./ToolsExplorer";
 import ToolExecutionPanel from "./ToolExecutionPanel";
 import { connectionStore } from "@/lib/mcp/connection-store";
-import { useConnectionContext } from "@/contexts/ConnectionContext";
+import { useConnectionContext } from "@/components/providers/ConnectionProvider";
 
 interface McpClientLayoutProps {
   publicServers: McpServer[] | null;

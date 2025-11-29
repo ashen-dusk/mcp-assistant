@@ -7,7 +7,7 @@ import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
 import { McpServer, ToolInfo } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { useMcpServersPagination } from "@/hooks/useMcpServersPagination";
-import { ConnectionProvider } from "@/contexts/ConnectionContext";
+import { ConnectionProvider } from "@/components/providers/ConnectionProvider";
 
 function McpPageContent() {
   const { data: session } = useSession();
