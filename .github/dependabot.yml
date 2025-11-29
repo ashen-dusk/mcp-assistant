@@ -19,9 +19,7 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    labels:
-      - "dependencies"
-      - "npm"
+
     # Group updates for better PR management
     groups:
       # Group all Next.js related packages
@@ -79,6 +77,4 @@ updates:
       - "ashen-dusk"
     commit-message:
       prefix: "chore(ci)"
-    labels:
-      - "dependencies"
-      - "github-actions"
+
