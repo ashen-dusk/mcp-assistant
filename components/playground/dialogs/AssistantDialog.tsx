@@ -13,14 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Bot, Pencil, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import React from "react";
 
 const PROVIDERS = [
   { id: "openai", name: "OpenAI" },
   { id: "deepseek", name: "DeepSeek" },
-  { id: "anthropic", name: "Anthropic" },
-  { id: "google", name: "Google" },
-  { id: "groq", name: "Groq" },
 ];
 
 export type AssistantFormData = {
@@ -43,7 +41,7 @@ interface AssistantDialogProps {
   onOpenChange: (v: boolean) => void;
   formData: AssistantFormData;
   setFormData: (v: AssistantFormData) => void;
-  onSubmit: () => void;
+  onSubmit: (saveApiKey: boolean) => void;
   loading: boolean;
   handleCancel: () => void;
 }
@@ -66,6 +64,36 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
     : "Create a custom assistant with specific instructions to personalize your experience.";
   const submitButtonText = isEditMode ? "Update Assistant" : "Create Assistant";
   const loadingText = isEditMode ? "Updating..." : "Creating...";
+
+  // Local state for checkbox (checked = save to DB, unchecked = localStorage only)
+  const [saveApiKey, setSaveApiKey] = React.useState(false);
+
+  // Load LLM config from localStorage when dialog opens if no config in formData
+  React.useEffect(() => {
+    if (open && !formData.config.llm_api_key) {
+      const storedConfig = localStorage.getItem('llm_config');
+      if (storedConfig) {
+        try {
+          const config = JSON.parse(storedConfig);
+          setFormData({
+            ...formData,
+            config: {
+              ...formData.config,
+              llm_provider: config.llm_provider || formData.config.llm_provider,
+              llm_api_key: config.llm_api_key
+            }
+          });
+          setSaveApiKey(false); // If loaded from localStorage, checkbox should be unchecked
+        } catch (e) {
+          console.error('Failed to parse llm_config from localStorage:', e);
+        }
+      }
+    } else if (open && formData.config.llm_api_key) {
+      // If API key exists in formData (from DB), checkbox should be checked
+      setSaveApiKey(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -128,7 +156,17 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
               <Label htmlFor="llm-provider">Provider</Label>
               <Select
                 value={formData.config.llm_provider || "openai"}
-                onValueChange={value => setFormData({ ...formData, config: { ...formData.config, llm_provider: value } })}
+                onValueChange={value => {
+                  setFormData({ ...formData, config: { ...formData.config, llm_provider: value } });
+
+                  // Update localStorage if checkbox is unchecked and we have an API key
+                  if (!saveApiKey && formData.config.llm_api_key) {
+                    localStorage.setItem('llm_config', JSON.stringify({
+                      llm_provider: value,
+                      llm_api_key: formData.config.llm_api_key
+                    }));
+                  }
+                }}
               >
                 <SelectTrigger id="llm-provider">
                   <SelectValue placeholder="Select provider" />
@@ -150,12 +188,48 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
                 type="password"
                 placeholder="Enter your API key (optional)"
                 value={formData.config.llm_api_key || ""}
-                onChange={e => setFormData({ ...formData, config: { ...formData.config, llm_api_key: e.target.value } })}
+                onChange={e => {
+                  const newKey = e.target.value;
+                  setFormData({ ...formData, config: { ...formData.config, llm_api_key: newKey } });
+
+                  // Save to localStorage JSON if checkbox is unchecked
+                  if (!saveApiKey && newKey) {
+                    localStorage.setItem('llm_config', JSON.stringify({
+                      llm_provider: formData.config.llm_provider || "openai",
+                      llm_api_key: newKey
+                    }));
+                  }
+                }}
                 className="font-mono text-sm"
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Leave empty to use global LLM configuration
-              </p>
+
+              {/* Checkbox for API key storage preference */}
+              <div className="flex items-center space-x-2 pt-1">
+                <Checkbox
+                  id="save-api-key-db"
+                  checked={saveApiKey}
+                  onCheckedChange={(checked) => {
+                    setSaveApiKey(checked === true);
+
+                    // If switching to localStorage, save the current key
+                    if (checked === false && formData.config.llm_api_key) {
+                      localStorage.setItem('llm_config', JSON.stringify({
+                        llm_provider: formData.config.llm_provider || "openai",
+                        llm_api_key: formData.config.llm_api_key
+                      }));
+                    } else if (checked === true) {
+                      // If switching to database, remove from localStorage
+                      localStorage.removeItem('llm_config');
+                    }
+                  }}
+                />
+                <Label
+                  htmlFor="save-api-key-db"
+                  className="text-xs font-normal cursor-pointer text-gray-600 dark:text-gray-400"
+                >
+                  If left unchecked, the API key will be stored locally in your browser&apos;s localStorage.
+                </Label>
+              </div>
             </div>
           </div>
 
@@ -238,7 +312,7 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
             Cancel
           </Button>
           <Button
-            onClick={onSubmit}
+            onClick={() => onSubmit(saveApiKey)}
             disabled={loading}
             className="flex-1 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >

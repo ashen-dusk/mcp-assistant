@@ -36,7 +36,7 @@ export class UnauthorizedError extends Error {
  */
 export class MCPOAuthClient {
   private client: Client | null = null;
-  private oauthProvider: InMemoryOAuthClientProvider | null = null;
+  public oauthProvider: InMemoryOAuthClientProvider | null = null; // Make public for session restoration
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private sessionId?: string;
   private transportType: TransportType;
@@ -67,7 +67,7 @@ export class MCPOAuthClient {
       token_endpoint_auth_method: 'client_secret_post',
       // Use standard OpenID Connect scopes that work with most OAuth providers
       // Some servers might support 'mcp:tools', but most use standard scopes
-      scope: 'openid profile email',
+      // scope: '',
     };
 
     this.oauthProvider = new InMemoryOAuthClientProvider(
@@ -220,6 +220,40 @@ export class MCPOAuthClient {
     };
 
     return await this.client.request(request, CallToolResultSchema);
+  }
+
+  /**
+   * Reconnect using existing OAuth provider
+   * Used for session restoration from Redis in serverless environments
+   * Recreates client and transport without creating a new OAuth provider
+   */
+  async reconnect(): Promise<void> {
+    if (!this.oauthProvider) {
+      throw new Error('OAuth provider not initialized');
+    }
+
+    // Create fresh client and transport with existing OAuth provider
+    this.client = new Client(
+      {
+        name: 'mcp-assistant-oauth-client',
+        version: '2.0',
+      },
+      { capabilities: {} }
+    );
+
+    const baseUrl = new URL(this.serverUrl);
+
+    if (this.transportType === 'sse') {
+      this.transport = new SSEClientTransport(baseUrl, {
+        authProvider: this.oauthProvider,
+      });
+    } else {
+      this.transport = new StreamableHTTPClientTransport(baseUrl, {
+        authProvider: this.oauthProvider,
+      });
+    }
+
+    await this.client.connect(this.transport);
   }
 
   /**

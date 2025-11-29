@@ -43,7 +43,6 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
       connectionStatus: 'CONNECTED',
       tools,
     });
-    console.log('[ConnectionPersistence] Saved connection for:', serverName);
   }, []);
 
   /**
@@ -51,7 +50,6 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
    */
   const removeConnection = useCallback((serverName: string) => {
     connectionStore.remove(serverName);
-    console.log('[ConnectionPersistence] Removed connection for:', serverName);
   }, []);
 
   /**

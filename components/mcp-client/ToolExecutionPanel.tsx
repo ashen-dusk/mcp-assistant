@@ -311,6 +311,7 @@ export default function ToolExecutionPanel({
                         fontSize: '11px',
                         borderRadius: '6px'
                       }}
+                      wrapLongLines={true}
                     >
                       {JSON.stringify(inputSchema, null, 2)}
                     </SyntaxHighlighter>
@@ -342,6 +343,7 @@ export default function ToolExecutionPanel({
                         fontSize: '11px',
                         borderRadius: '6px'
                       }}
+                      wrapLongLines={true}
                     >
                       {JSON.stringify(outputSchema, null, 2)}
                     </SyntaxHighlighter>

@@ -74,34 +74,77 @@ export default function ChatInput({
     mcpConfig: {},
   });
 
+  // Get LLM config from localStorage or assistant config
+  const getLLMConfig = () => {
+    if (typeof window === "undefined") return { provider: undefined, apiKey: undefined };
+
+    // If assistant has config in DB, use it
+    if (activeAssistant?.config?.llm_api_key && activeAssistant?.config?.llm_provider) {
+      return {
+        provider: activeAssistant.config.llm_provider,
+        apiKey: activeAssistant.config.llm_api_key,
+      };
+    }
+
+    // Otherwise, get from localStorage JSON
+    const storedConfig = localStorage.getItem('llm_config');
+    if (storedConfig) {
+      try {
+        const config = JSON.parse(storedConfig);
+        return {
+          provider: config.llm_provider,
+          apiKey: config.llm_api_key,
+        };
+      } catch (e) {
+        console.error('Failed to parse llm_config from localStorage:', e);
+      }
+    }
+
+    return { provider: undefined, apiKey: undefined };
+  };
+
   const { state, setState } = useCoAgent<AgentState>({
     name: "mcpAssistant",
     initialState: {
       model: selectedModel,
       status: undefined,
       sessionId: getSessionId(session),
-      assistant: activeAssistant,
+      assistant: activeAssistant ? {
+        ...activeAssistant,
+        config: {
+          ...activeAssistant.config,
+          llm_provider: getLLMConfig().provider || activeAssistant.config?.llm_provider,
+          llm_api_key: getLLMConfig().apiKey || activeAssistant.config?.llm_api_key,
+        }
+      } : null,
       mcp_config: toolSelection.mcpConfig,
       selectedTools: toolSelection.selectedTools,
-      llm_provider: activeAssistant?.config?.llm_provider,
-      llm_api_key: activeAssistant?.config?.llm_api_key,
     },
   });
 
+  console.log(state, 'state');
   // Update coagent state when active assistant changes
   useEffect(() => {
-    if (activeAssistant !== state.assistant) {
-      setState({
-        ...state,
-        assistant: activeAssistant,
-        llm_provider: activeAssistant?.config?.llm_provider,
-        llm_api_key: activeAssistant?.config?.llm_api_key,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAssistant, setState]);
+    const llmConfig = getLLMConfig();
+    const updatedAssistant = activeAssistant ? {
+      ...activeAssistant,
+      config: {
+        ...activeAssistant.config,
+        llm_provider: llmConfig.provider || activeAssistant.config?.llm_provider,
+        llm_api_key: llmConfig.apiKey || activeAssistant.config?.llm_api_key,
+      }
+    } : null;
 
-  // console.log("Agent State:", state);
+    setState({
+      model: selectedModel,
+      status: state.status,
+      sessionId: state.sessionId,
+      assistant: updatedAssistant,
+      mcp_config: state.mcp_config,
+      selectedTools: state.selectedTools,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAssistant?.id]);
 
   const [message, setMessage] = useState("");
   const [dropdownState, setDropdownState] = useState<"model" | "assistant" | "mcp" | null>(null);
@@ -176,31 +219,53 @@ export default function ChatInput({
       name: assistant.name,
       description: assistant.description || "",
       instructions: assistant.instructions,
-      config: assistant.config || {
-        ask_mode: false,
-        max_tokens: 2000,
-        temperature: 0.7,
-        datetime_context: true,
+      config: {
+        ask_mode: assistant.config?.ask_mode || false,
+        max_tokens: assistant.config?.max_tokens || 2000,
+        temperature: assistant.config?.temperature || 0.7,
+        datetime_context: assistant.config?.datetime_context !== undefined ? assistant.config.datetime_context : true,
+        llm_provider: assistant.config?.llm_provider,
+        llm_api_key: assistant.config?.llm_api_key,
       }
     });
     setDropdownState(null);
     setDialogState("assistant");
   };
 
-  const handleSubmitAssistant = async () => {
+  const handleSubmitAssistant = async (saveApiKey: boolean) => {
     if (!assistantFormData.name.trim() || !assistantFormData.instructions.trim()) {
       toast.error("Name and instructions are required");
       return;
     }
     setIsBusy(true);
     try {
+      // Handle API key storage based on checkbox
+      const configToSave = { ...assistantFormData.config };
+
+      if (!saveApiKey) {
+        // Save to localStorage JSON only
+        if (configToSave.llm_api_key && configToSave.llm_provider) {
+          localStorage.setItem('llm_config', JSON.stringify({
+            llm_provider: configToSave.llm_provider,
+            llm_api_key: configToSave.llm_api_key
+          }));
+        }
+        // Don't send API key or provider to database
+        configToSave.llm_api_key = undefined;
+        configToSave.llm_provider = undefined;
+      } else {
+        // Save to database - API key and provider will be sent as-is
+        // Clear from localStorage
+        localStorage.removeItem('llm_config');
+      }
+
       if (assistantDialogMode === "create") {
         await createAssistant({
           name: assistantFormData.name,
           instructions: assistantFormData.instructions,
           description: assistantFormData.description || undefined,
           isActive: true, // Make new assistant active by default
-          config: assistantFormData.config,
+          config: configToSave,
         });
       } else {
         // Edit mode
@@ -209,10 +274,41 @@ export default function ChatInput({
             name: assistantFormData.name,
             instructions: assistantFormData.instructions,
             description: assistantFormData.description || undefined,
-            config: assistantFormData.config,
+            config: configToSave,
           });
         }
       }
+
+      // Update agent state with new LLM config after save
+      if (activeAssistant) {
+        // Use the values we just saved (from DB or localStorage)
+        let llm_provider: string | undefined;
+        let llm_api_key: string | undefined;
+
+        if (saveApiKey) {
+          // Saved to DB - use the original values from form
+          llm_provider = assistantFormData.config.llm_provider;
+          llm_api_key = assistantFormData.config.llm_api_key;
+        } else {
+          // Saved to localStorage - read from there
+          const llmConfig = getLLMConfig();
+          llm_provider = llmConfig.provider;
+          llm_api_key = llmConfig.apiKey;
+        }
+
+        setState({
+          ...state,
+          assistant: {
+            ...activeAssistant,
+            config: {
+              ...activeAssistant.config,
+              llm_provider,
+              llm_api_key,
+            }
+          }
+        });
+      }
+
       handleCancelAssistant();
     } catch (error) {
       console.error(`Failed to ${assistantDialogMode} assistant:`, error);
