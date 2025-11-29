@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   PanelLeftClose,
@@ -102,8 +102,10 @@ export function ServerSidebar({
     fetchPolicy: "cache-and-network",
   });
 
-  const categories: Category[] =
-    categoriesData?.categories?.edges?.map((edge) => edge.node) || [];
+  const categories: Category[] = useMemo(
+    () => categoriesData?.categories?.edges?.map((edge) => edge.node) || [],
+    [categoriesData]
+  );
 
   // Use filtered servers hook when search or category is active
   const {
@@ -126,15 +128,15 @@ export function ServerSidebar({
   const displayServers = isFiltering
     ? filteredServers
     : activeTab === "public"
-    ? publicServers
-    : userServers;
+      ? publicServers
+      : userServers;
 
   // Only show skeleton on initial load (when no servers loaded yet)
   const displayLoading = isFiltering
     ? filterLoading && filteredServers.length === 0
     : activeTab === "public"
-    ? publicLoading && (!publicServers || publicServers.length === 0)
-    : userLoading;
+      ? publicLoading && (!publicServers || publicServers.length === 0)
+      : userLoading;
 
   const displayHasNextPage = isFiltering ? hasFilterNextPage : hasNextPage;
   const displayIsLoadingMore = isFiltering ? isLoadingMoreFiltered : isLoadingMore;
@@ -258,11 +260,10 @@ export function ServerSidebar({
             className="flex items-center gap-1 flex-1"
           >
             <RefreshCw
-              className={`h-4 w-4 ${
-                activeTab === "public" ? publicLoading : userLoading
-                  ? "animate-spin"
-                  : ""
-              }`}
+              className={`h-4 w-4 ${(activeTab === "public" ? publicLoading : userLoading)
+                ? "animate-spin"
+                : ""
+                }`}
             />
             <span className="text-xs">Refresh</span>
           </Button>
@@ -278,11 +279,11 @@ export function ServerSidebar({
                 <span className="text-xs max-w-[120px] truncate">
                   {selectedCategory
                     ? truncateText(
-                        categoriesData?.categories?.edges.find(
-                          (c) => c.node.slug === selectedCategory
-                        )?.node.name || "Filter",
-                        17
-                      )
+                      categoriesData?.categories?.edges.find(
+                        (c) => c.node.slug === selectedCategory
+                      )?.node.name || "Filter",
+                      17
+                    )
                     : "Filter"}
                 </span>
               </Button>

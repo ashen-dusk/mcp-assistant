@@ -29,10 +29,10 @@ function McpPageContent() {
 
   const fetchUserServers = useCallback(async () => {
     if (!session) return;
-    
+
     setUserLoading(true);
     setUserError(null);
-    
+
     try {
       const res = await fetch(`/api/mcp/user`, { method: "GET" });
       const json = await res.json();
@@ -169,7 +169,7 @@ function McpPageContent() {
         }) : prev);
 
         // Refetch public servers to update from localStorage
-        refetchPublicServers();
+        // refetchPublicServers();
 
         return { success: true, tools };
       }
@@ -224,7 +224,7 @@ function McpPageContent() {
         }) : prev);
 
         // Refetch public servers to update from localStorage
-        refetchPublicServers();
+        // refetchPublicServers();
 
         return { success: true };
       }
@@ -300,8 +300,8 @@ function McpPageContent() {
   const handleUpdateUserServer = (serverId: string, updates: Partial<McpServer>) => {
     setUserServers(prevServers => {
       if (!prevServers) return prevServers;
-      return prevServers.map(server => 
-        server.id === serverId 
+      return prevServers.map(server =>
+        server.id === serverId
           ? { ...server, ...updates }
           : server
       );
@@ -416,7 +416,7 @@ function McpPageContent() {
   return (
     <>
       {/* <Suspense fallback={null}> */}
-        <OAuthCallbackHandler onRefreshServers={refreshAllServers} />
+      <OAuthCallbackHandler onRefreshServers={refreshAllServers} />
       {/* </Suspense> */}
       <McpClientLayout
         publicServers={publicServers}
