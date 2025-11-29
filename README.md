@@ -1,23 +1,34 @@
-# MCP Hub - Frontend
+<div align="center">
+  <img src="public/images/favicon.svg" alt="MCP Assistant Logo" width="120" height="120">
+  <h1>MCP Assistant</h1>
+  <p>A Web Based MCP Client to access remote MCP's</p>
+</div>
 
-Next.js 15 frontend for the MCP (Model Context Protocol) Hub. Provides a modern web interface for managing and interacting with MCP servers.
+## Features
+
+- **Server Management** - Connect, configure, and manage MCP servers
+- **AI Chat Interface** - Interactive chat powered by CopilotKit
+- **OAuth2 Support** - Secure authentication for MCP servers
+- **Category Organization** - Organize servers with custom categories
+- **Real-time Status** - Monitor server connection status
+- **Tool Discovery** - Browse and interact with MCP server tools
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
-- **UI:** React 19, TypeScript, Tailwind CSS
-- **Components:** shadcn/ui (Radix UI primitives)
-- **Authentication:** NextAuth.js with Google OAuth
-- **AI Chat:** CopilotKit integration
-- **State:** React hooks, GraphQL queries
+- Next.js 15 with App Router
+- React 19 & TypeScript
+- Tailwind CSS 4
+- shadcn/ui components
+- NextAuth.js authentication
+- CopilotKit for AI chat
+- GraphQL API integration
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- Backend API running at `http://localhost:8000`
-- Google OAuth credentials
+- Backend API running (default: `http://localhost:8000`)
 
 ### Installation
 
@@ -25,11 +36,11 @@ Next.js 15 frontend for the MCP (Model Context Protocol) Hub. Provides a modern 
 npm install
 ```
 
-### Environment Variables
+### Environment Setup
 
-Create `.env.local` file:
+Create a `.env.local` file:
 
-```bash
+```env
 NEXTAUTH_SECRET=your_nextauth_secret
 NEXTAUTH_URL=http://localhost:3000
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -44,9 +55,9 @@ BACKEND_URL=http://localhost:8000
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Visit [http://localhost:3000](http://localhost:3000)
 
-### Build
+### Production Build
 
 ```bash
 npm run build
@@ -57,45 +68,16 @@ npm start
 
 ```
 mcp-client/
-├── app/                    # Next.js App Router
-│   ├── api/               # API routes (GraphQL proxy, CopilotKit)
-│   ├── page.tsx           # Home page
-│   └── layout.tsx         # Root layout
-├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   └── AuthProvider.tsx  # NextAuth wrapper
-├── hooks/                # Custom React hooks
-│   └── useMcpServers.ts  # MCP server management
-├── types/                # TypeScript types
-│   └── mcp.ts           # MCP & Category types
-└── lib/                  # Utilities
+├── app/              # Next.js App Router pages
+├── components/       # React components
+│   ├── ui/          # shadcn/ui components
+│   ├── mcp-client/  # MCP-specific components
+│   └── playground/  # Chat interface components
+├── hooks/           # Custom React hooks
+├── types/           # TypeScript type definitions
+└── lib/             # Utility functions
 ```
 
-## Key Features
+## License
 
-- **MCP Server Management** - Create, update, delete, and categorize servers
-- **Category System** - Organize servers with icons and colors
-- **Real-time Chat** - AI-powered chat with CopilotKit
-- **Authentication** - Google OAuth integration
-- **GraphQL API** - Type-safe queries and mutations
-- **Responsive UI** - Mobile-friendly design
-
-## API Integration
-
-Frontend communicates with Django backend via:
-- GraphQL endpoint: `/api/graphql`
-- CopilotKit endpoints: `/api/copilotkit`
-
-## TypeScript Types
-
-Types are defined in `types/mcp.ts` and match the Django GraphQL schema:
-- `McpServer` - Server configuration with category
-- `Category` - Category with icon, color, description
-- `ToolInfo` - MCP tool information
-
-## Learn More
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [NextAuth.js](https://next-auth.js.org)
-- [CopilotKit](https://docs.copilotkit.ai)
-- [shadcn/ui](https://ui.shadcn.com)
+MIT
