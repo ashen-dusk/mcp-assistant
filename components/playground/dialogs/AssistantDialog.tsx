@@ -19,9 +19,6 @@ import React from "react";
 const PROVIDERS = [
   { id: "openai", name: "OpenAI" },
   { id: "deepseek", name: "DeepSeek" },
-  { id: "anthropic", name: "Anthropic" },
-  { id: "google", name: "Google" },
-  { id: "groq", name: "Groq" },
 ];
 
 export type AssistantFormData = {
@@ -71,28 +68,32 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
   // Local state for checkbox (checked = save to DB, unchecked = localStorage only)
   const [saveApiKey, setSaveApiKey] = React.useState(false);
 
-  // Load API key from localStorage when dialog opens if no API key in formData
+  // Load LLM config from localStorage when dialog opens if no config in formData
   React.useEffect(() => {
     if (open && !formData.config.llm_api_key) {
-      const provider = formData.config.llm_provider || "openai";
-      const storedKey = localStorage.getItem(`llm_api_key_${provider}`);
-
-      if (storedKey) {
-        setFormData({
-          ...formData,
-          config: {
-            ...formData.config,
-            llm_api_key: storedKey
-          }
-        });
-        setSaveApiKey(false); // If loaded from localStorage, checkbox should be unchecked
+      const storedConfig = localStorage.getItem('llm_config');
+      if (storedConfig) {
+        try {
+          const config = JSON.parse(storedConfig);
+          setFormData({
+            ...formData,
+            config: {
+              ...formData.config,
+              llm_provider: config.llm_provider || formData.config.llm_provider,
+              llm_api_key: config.llm_api_key
+            }
+          });
+          setSaveApiKey(false); // If loaded from localStorage, checkbox should be unchecked
+        } catch (e) {
+          console.error('Failed to parse llm_config from localStorage:', e);
+        }
       }
     } else if (open && formData.config.llm_api_key) {
       // If API key exists in formData (from DB), checkbox should be checked
       setSaveApiKey(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, formData.config.llm_provider]);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,7 +156,17 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
               <Label htmlFor="llm-provider">Provider</Label>
               <Select
                 value={formData.config.llm_provider || "openai"}
-                onValueChange={value => setFormData({ ...formData, config: { ...formData.config, llm_provider: value } })}
+                onValueChange={value => {
+                  setFormData({ ...formData, config: { ...formData.config, llm_provider: value } });
+
+                  // Update localStorage if checkbox is unchecked and we have an API key
+                  if (!saveApiKey && formData.config.llm_api_key) {
+                    localStorage.setItem('llm_config', JSON.stringify({
+                      llm_provider: value,
+                      llm_api_key: formData.config.llm_api_key
+                    }));
+                  }
+                }}
               >
                 <SelectTrigger id="llm-provider">
                   <SelectValue placeholder="Select provider" />
@@ -181,10 +192,12 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
                   const newKey = e.target.value;
                   setFormData({ ...formData, config: { ...formData.config, llm_api_key: newKey } });
 
-                  // Save to localStorage if checkbox is unchecked
+                  // Save to localStorage JSON if checkbox is unchecked
                   if (!saveApiKey && newKey) {
-                    const provider = formData.config.llm_provider || "openai";
-                    localStorage.setItem(`llm_api_key_${provider}`, newKey);
+                    localStorage.setItem('llm_config', JSON.stringify({
+                      llm_provider: formData.config.llm_provider || "openai",
+                      llm_api_key: newKey
+                    }));
                   }
                 }}
                 className="font-mono text-sm"
@@ -200,12 +213,13 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
 
                     // If switching to localStorage, save the current key
                     if (checked === false && formData.config.llm_api_key) {
-                      const provider = formData.config.llm_provider || "openai";
-                      localStorage.setItem(`llm_api_key_${provider}`, formData.config.llm_api_key);
+                      localStorage.setItem('llm_config', JSON.stringify({
+                        llm_provider: formData.config.llm_provider || "openai",
+                        llm_api_key: formData.config.llm_api_key
+                      }));
                     } else if (checked === true) {
                       // If switching to database, remove from localStorage
-                      const provider = formData.config.llm_provider || "openai";
-                      localStorage.removeItem(`llm_api_key_${provider}`);
+                      localStorage.removeItem('llm_config');
                     }
                   }}
                 />
