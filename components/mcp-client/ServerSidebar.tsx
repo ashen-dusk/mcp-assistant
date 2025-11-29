@@ -129,10 +129,11 @@ export function ServerSidebar({
     ? publicServers
     : userServers;
 
+  // Only show skeleton on initial load (when no servers loaded yet)
   const displayLoading = isFiltering
-    ? filterLoading
+    ? filterLoading && filteredServers.length === 0
     : activeTab === "public"
-    ? publicLoading
+    ? publicLoading && (!publicServers || publicServers.length === 0)
     : userLoading;
 
   const displayHasNextPage = isFiltering ? hasFilterNextPage : hasNextPage;
