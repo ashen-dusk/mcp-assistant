@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/images/favicon.svg" alt="MCP Assistant Logo" width="120" height="120">
+  <img src="public/images/favicon.svg" alt="MCP Assistant Logo" width="80" height="80">
   <h1>MCP Assistant</h1>
   <p><strong>A Web Based MCP Client to access remote MCP's</strong></p>
   
@@ -17,59 +17,26 @@
 <tr>
 <td width="50%">
 
-### 🔌 Server Management
-- Connect to remote MCP servers via SSE, WebSocket, or HTTP
+### 🔌 MCP Protocol
+- Supported transport via SSE and Streamable HTTP
 - Configure and manage multiple servers simultaneously
+- OAuth 2.0 Authorization Server Metadata (RFC8414) and OpenID Connect Discovery 1.0 support
 - Real-time connection status monitoring
-- Support for OAuth2 authentication
 
 </td>
 <td width="50%">
 
-### 💬 AI Chat Interface
-- Interactive chat powered by CopilotKit
-- Context-aware responses using MCP tools
-- Support for multiple LLM providers (OpenAI, DeepSeek, etc.)
-- Markdown rendering with syntax highlighting
+### 💬 Agent–User Interaction (AG-UI) Protocol
+- **Stream text message events** - Real-time message streaming for responsive interactions
+- **Backend tool rendering** - Visualize tool outputs in chats
+- **Tool output streaming** - Stream tool results and logs as real-time events
+- **Interrupts (human in the loop)** - Pause and approve workflows without losing state
+- **Shared state** - Context-aware responses using MCP tools
 
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 📂 Organization
-- Categorize servers with custom icons and colors
-- Browse and filter available MCP servers
-- Tool discovery and exploration
-- User-friendly server management UI
-
-</td>
-<td width="50%">
-
-### 🔐 Authentication
-- Secure Google OAuth integration
-- Session management with NextAuth.js
-- Protected API routes
-- User-specific server configurations
 
 </td>
 </tr>
 </table>
-
----
-
-## 🚀 Tech Stack
-
-| Category | Technologies |
-|----------|-------------|
-| **Framework** | Next.js 15 (App Router), React 19 |
-| **Language** | TypeScript 5 |
-| **Styling** | Tailwind CSS 4, Framer Motion |
-| **UI Components** | shadcn/ui (Radix UI primitives) |
-| **Authentication** | NextAuth.js with Google OAuth |
-| **AI Integration** | CopilotKit, MCP SDK |
-| **API** | GraphQL (Apollo Client) |
-| **State Management** | React Hooks, Redis (IORedis) |
 
 ---
 
@@ -172,27 +139,7 @@ mcp-client/
 
 ---
 
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `NEXTAUTH_SECRET` | Secret key for NextAuth.js session encryption | ✅ |
-| `NEXTAUTH_URL` | Base URL of your application | ✅ |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | ✅ |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | ✅ |
-| `DJANGO_API_URL` | Backend GraphQL API endpoint | ✅ |
-| `BACKEND_URL` | Backend base URL for SSE/WebSocket | ✅ |
-
-### Supported MCP Transports
-
-- **SSE (Server-Sent Events)** - Real-time streaming
-- **Streamable HTTP** - Standard request/response
-
----
-
-## 🎯 Usage
+## 🚀 Getting Started with MCP Assistant
 
 ### Adding an MCP Server
 
@@ -200,7 +147,7 @@ mcp-client/
 2. Click "Add Server" button
 3. Fill in server details:
    - Server name
-   - Transport type (SSE/WebSocket/HTTP)
+   - Transport type (SSE/Streamable HTTP)
    - Server URL
    - Optional: OAuth2 configuration
 4. Click "Save" to connect
@@ -209,7 +156,7 @@ mcp-client/
 
 1. Select connected MCP servers from the sidebar
 2. Choose your preferred LLM provider
-3. Enter your API key (stored in session)
+3. Enter your API key
 4. Start chatting - the assistant can use tools from connected MCP servers
 
 ---
