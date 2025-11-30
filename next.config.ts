@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  trustHost: true,
+
+  reactStrictMode: true,
+  swcMinify: true,
+  poweredByHeader: false,
 };
 
 export default nextConfig;
