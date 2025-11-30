@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/mcp/session-store';
+import { getAppUrl } from '@/lib/url';
 
 /**
  * GET/POST /api/mcp/auth/callback
@@ -36,7 +37,7 @@ async function handleCallback(request: NextRequest) {
 
     // Check if OAuth provider returned an error
     if (error) {
-      const errorUrl = new URL('/mcp', request.url);
+      const errorUrl = new URL('/mcp', getAppUrl());
       errorUrl.searchParams.set('step', 'error');
       const errorMessage = errorDescription || error;
       errorUrl.searchParams.set('error', errorMessage);
@@ -44,14 +45,14 @@ async function handleCallback(request: NextRequest) {
     }
 
     if (!code) {
-      const errorUrl = new URL('/mcp', request.url);
+      const errorUrl = new URL('/mcp', getAppUrl());
       errorUrl.searchParams.set('step', 'error');
       errorUrl.searchParams.set('error', 'Authorization code is required');
       return NextResponse.redirect(errorUrl);
     }
 
     if (!state) {
-      const errorUrl = new URL('/mcp', request.url);
+      const errorUrl = new URL('/mcp', getAppUrl());
       errorUrl.searchParams.set('step', 'error');
       errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
       return NextResponse.redirect(errorUrl);
@@ -75,7 +76,7 @@ async function handleCallback(request: NextRequest) {
     // Retrieve client from session store
     const client = await sessionStore.getClient(sessionId);
     if (!client) {
-      const errorUrl = new URL('/mcp', request.url);
+      const errorUrl = new URL('/mcp', getAppUrl());
       if (serverName) {
         errorUrl.searchParams.set('server', serverName);
       }
@@ -103,7 +104,7 @@ async function handleCallback(request: NextRequest) {
       }
 
       // Redirect back to MCP page with success parameters
-      const successUrl = new URL('/mcp', request.url);
+      const successUrl = new URL('/mcp', getAppUrl());
       if (serverName) {
         successUrl.searchParams.set('server', serverName);
       }
@@ -114,7 +115,7 @@ async function handleCallback(request: NextRequest) {
     } catch (error: unknown) {
       if (error instanceof Error) {
         // Redirect to MCP page with error parameter
-        const errorUrl = new URL('/mcp', request.url);
+        const errorUrl = new URL('/mcp', getAppUrl());
         if (serverName) {
           errorUrl.searchParams.set('server', serverName);
         }
@@ -122,7 +123,7 @@ async function handleCallback(request: NextRequest) {
         errorUrl.searchParams.set('error', error.message);
         return NextResponse.redirect(errorUrl);
       }
-      const errorUrl = new URL('/mcp', request.url);
+      const errorUrl = new URL('/mcp', getAppUrl());
       if (serverName) {
         errorUrl.searchParams.set('server', serverName);
       }
@@ -131,7 +132,7 @@ async function handleCallback(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
   } catch (error: unknown) {
-    const errorUrl = new URL('/mcp', request.url);
+    const errorUrl = new URL('/mcp', getAppUrl());
     errorUrl.searchParams.set('step', 'error');
 
     if (error instanceof Error) {

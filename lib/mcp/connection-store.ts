@@ -20,7 +20,7 @@ export interface StoredConnection {
 }
 
 const STORAGE_KEY = 'mcp_connections';
-const EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const EXPIRY_TIME = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
 class ConnectionStore {
   private listeners = new Set<() => void>();
