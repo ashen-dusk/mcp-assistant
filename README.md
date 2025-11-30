@@ -17,16 +17,17 @@
 <tr>
 <td width="50%">
 
-### 🔌 MCP Protocol
+### MCP Protocol
 - Supported transport via SSE and Streamable HTTP
 - Configure and manage multiple servers simultaneously
 - OAuth 2.0 Authorization Server Metadata (RFC8414) and OpenID Connect Discovery 1.0 support
 - Real-time connection status monitoring
+- Tool execution
 
 </td>
 <td width="50%">
 
-### 💬 Agent–User Interaction (AG-UI) Protocol
+### Agent–User Interaction (AG-UI Protocol)
 - **Stream text message events** - Real-time message streaming for responsive interactions
 - **Backend tool rendering** - Visualize tool outputs in chats
 - **Tool output streaming** - Stream tool results and logs as real-time events
@@ -99,42 +100,6 @@ npm run build
 
 # Start production server
 npm start
-```
-
----
-
-## 📁 Project Structure
-
-```
-mcp-client/
-├── app/                      # Next.js App Router
-│   ├── api/                 # API routes
-│   │   ├── auth/           # NextAuth endpoints
-│   │   ├── copilotkit/     # CopilotKit integration
-│   │   └── graphql/        # GraphQL proxy
-│   ├── mcp/                # MCP server pages
-│   ├── playground/         # Chat interface
-│   ├── page.tsx            # Home page
-│   └── layout.tsx          # Root layout
-├── components/              # React components
-│   ├── ui/                 # shadcn/ui components
-│   ├── mcp-client/         # MCP-specific components
-│   │   ├── ServerSidebar.tsx
-│   │   ├── ServerListItem.tsx
-│   │   └── ServerIcon.tsx
-│   └── playground/         # Chat components
-│       ├── ChatInput.tsx
-│       └── ChatMessage.tsx
-├── hooks/                   # Custom React hooks
-│   ├── useMcpServers.ts    # Server management
-│   ├── useMcpTools.ts      # Tool discovery
-│   └── useMcpServersPagination.ts
-├── types/                   # TypeScript definitions
-│   └── mcp.ts              # MCP types
-├── lib/                     # Utility functions
-│   └── utils.ts
-└── public/                  # Static assets
-    └── images/
 ```
 
 ---
