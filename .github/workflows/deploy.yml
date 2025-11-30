@@ -17,6 +17,9 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.PORT }}
           script: |
+            # exit immediately if a command exits with a non-zero status
+            set -e
+
             # Navigate to app directory
             cd mcp-assistant
 
