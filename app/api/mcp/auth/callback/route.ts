@@ -94,7 +94,8 @@ async function handleCallback(request: NextRequest) {
         sessionId,
         client,
         serverUrl || client.getServerUrl(),
-        client.getCallbackUrl()
+        client.getCallbackUrl(),
+        client.getTransportType()
       );
 
       // Store server-to-session mapping if serverUrl is provided

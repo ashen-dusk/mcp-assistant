@@ -289,4 +289,11 @@ export class MCPOAuthClient {
   getCallbackUrl(): string {
     return this.callbackUrl;
   }
+
+  /**
+   * Get the transport type
+   */
+  getTransportType(): TransportType {
+    return this.transportType;
+  }
 }
