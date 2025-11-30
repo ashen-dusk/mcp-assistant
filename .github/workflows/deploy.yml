@@ -1,4 +1,4 @@
-name: Deploy to Linode
+name: Release to Production
 
 on:
   push:
@@ -8,6 +8,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    environment:
+      name: Production
+      url: ${{ secrets.PRODUCTION_URL }}
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
