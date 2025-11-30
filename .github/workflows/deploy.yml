@@ -13,7 +13,7 @@ jobs:
 
     environment:
       name: Production
-      url: ${{ secrets.PRODUCTION_URL }}
+      url: ${{ vars.PRODUCTION_URL }}
 
     steps:
       - name: Deploy via SSH
