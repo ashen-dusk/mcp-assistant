@@ -98,12 +98,6 @@ async function handleCallback(request: NextRequest) {
         client.getTransportType()
       );
 
-      // Store server-to-session mapping if serverUrl is provided
-      // Use serverUrl as key since it's unique (serverName can be duplicate)
-      if (serverUrl) {
-        await sessionStore.setServerSession(sessionId, serverUrl, sessionId);
-      }
-
       // Redirect back to MCP page with success parameters
       const successUrl = new URL('/mcp', getAppUrl());
       if (serverName) {

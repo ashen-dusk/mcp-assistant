@@ -79,11 +79,6 @@ export async function POST(request: NextRequest) {
       // Connection successful, save client to session store with full config
       await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, normalizedTransport);
 
-      // Store the serverUrl-to-session mapping
-      // Use serverUrl as key since it's unique (serverName can be duplicate)
-      await sessionStore.setServerSession(sessionId, serverUrl, sessionId);
-      console.log('[Connect API] Connection successful, sessionId:', sessionId, 'serverUrl:', serverUrl);
-
       return NextResponse.json({
         success: true,
         sessionId,

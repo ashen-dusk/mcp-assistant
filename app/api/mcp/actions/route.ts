@@ -42,10 +42,6 @@ export async function POST(request: NextRequest) {
         throw new Error('Failed to disconnect from server');
       }
 
-      // Remove from session store
-      // Use serverUrl as key since it's unique (serverName can be duplicate)
-      await sessionStore.removeServerSession(sessionId, serverUrl);
-
       return NextResponse.json({
         data: {
           disconnectMcpServer: {
