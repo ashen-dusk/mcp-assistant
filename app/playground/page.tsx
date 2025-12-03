@@ -10,11 +10,8 @@ import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import { AssistantMessage } from "@/components/playground/ChatMessage";
 import { A2AAgentManager } from "@/components/playground/A2AAgentManager";
-import { MessageToA2A } from "@/components/playground/a2a/MessageToA2A";
-import { MessageFromA2A } from "@/components/playground/a2a/MessageFromA2A";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRenderToolCall } from "@copilotkit/react-core";
 
 interface ChatInputWrapperProps {
   onSend: (message: string) => void;
@@ -33,7 +30,7 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
         onSendMessage={onSend}
         pushToTalkState={pushToTalkState}
         onPushToTalkStateChange={setPushToTalkState}
-        />
+      />
     </div>
   );
 };
@@ -43,26 +40,15 @@ const PlaygroundPage = () => {
   const askMode = activeAssistant?.config?.ask_mode;
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Render A2A agent communication messages
-  useRenderToolCall({
-    name: "send_message_to_a2a_agent",
-    render: ({ status, args }) => {
-      return (
-        <>
-          <MessageToA2A status={status} args={args} />
-          <MessageFromA2A status={status} args={args} />
-        </>
-      );
-    },
-  });
+  // Extract A2A agents from active assistant config
+  const a2aAgents = (activeAssistant?.config as any)?.a2a_agents || null;
 
   return (
     <div className="flex h-[calc(100vh-64px)] gap-4">
       {/* A2A Agent Manager Sidebar */}
       <div
-        className={`transition-all duration-300 ${
-          isSidebarOpen ? "w-80" : "w-0"
-        } overflow-hidden`}
+        className={`transition-all duration-300 ${isSidebarOpen ? "w-80" : "w-0"
+          } overflow-hidden`}
       >
         {isSidebarOpen && (
           <div className="h-full border-r pr-4 overflow-y-auto">
@@ -93,7 +79,7 @@ const PlaygroundPage = () => {
         }
       >
         {/* Human-in-the-loop or tool renderer */}
-        {askMode ? <HumanInTheLoop /> : <ToolRenderer />}
+        {askMode ? <HumanInTheLoop /> : <ToolRenderer a2aAgents={a2aAgents} />}
 
         <CopilotChat
           labels={{

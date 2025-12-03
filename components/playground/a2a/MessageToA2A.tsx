@@ -14,6 +14,7 @@ type MessageActionRenderProps = {
  * Shows when orchestrator delegates a task to a specialist agent
  */
 export const MessageToA2A: React.FC<MessageActionRenderProps> = ({ status, args }) => {
+  console.log(`${status} ${args}: status and args MessageToA2A`)
   // Only render when message is being sent (executing) or has been sent (complete)
   switch (status) {
     case "executing":
@@ -28,7 +29,6 @@ export const MessageToA2A: React.FC<MessageActionRenderProps> = ({ status, args 
   }
 
   const agentStyle = getAgentStyle(args.agentName);
-  console.log(`${status} ${args}: status and args MessageToA2A`)
   return (
     <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 my-2 animate-in fade-in slide-in-from-left-5 duration-300">
       <div className="flex items-start gap-3">
