@@ -9,10 +9,11 @@ export interface AssistantsState {
   loading: boolean;
   error: string | null;
   activeAssistant: Assistant | null;
+  a2aAgents: Assistant[] | null;
   refresh: () => Promise<void>;
   setActiveAssistant: (assistantId: string) => Promise<void>;
-  createAssistant: (data: { name: string; instructions: string; description?: string; isActive?: boolean; config?: any }) => Promise<void>;
-  updateAssistant: (id: string, data: { name?: string; instructions?: string; description?: string; isActive?: boolean; config?: any }) => Promise<void>;
+  createAssistant: (data: { name: string; instructions: string; assistantType?: string; description?: string; isActive?: boolean; config?: any }) => Promise<void>;
+  updateAssistant: (id: string, data: { name?: string; assistantType?: string; instructions?: string; description?: string; isActive?: boolean; config?: any }) => Promise<void>;
   deleteAssistant: (id: string) => Promise<void>;
 }
 
@@ -92,7 +93,7 @@ export function useAssistants(): AssistantsState {
   }, []);
 
   // Create a new assistant
-  const createAssistant = useCallback(async (data: { name: string; instructions: string; description?: string; isActive?: boolean; config?: any }) => {
+  const createAssistant = useCallback(async (data: { name: string; instructions: string; assistantType?: string; description?: string; isActive?: boolean; config?: any }) => {
     try {
       const response = await fetch('/api/graphql', {
         method: 'POST',
@@ -104,6 +105,7 @@ export function useAssistants(): AssistantsState {
           variables: {
             name: data.name,
             instructions: data.instructions,
+            assistantType: data.assistantType || 'orchestrator',
             description: data.description,
             isActive: data.isActive,
             config: data.config,
@@ -130,7 +132,7 @@ export function useAssistants(): AssistantsState {
   }, []);
 
   // Update an existing assistant
-  const updateAssistant = useCallback(async (id: string, data: { name?: string; instructions?: string; description?: string; isActive?: boolean; config?: any }) => {
+  const updateAssistant = useCallback(async (id: string, data: { name?: string; assistantType?: string; instructions?: string; description?: string; isActive?: boolean; config?: any }) => {
     try {
       const response = await fetch('/api/graphql', {
         method: 'POST',
@@ -195,6 +197,11 @@ export function useAssistants(): AssistantsState {
   // Get the currently active assistant
   const activeAssistant = assistants?.find(a => a.isActive) || null;
 
+  // Get A2A agents (specialist and tool_agent types)
+  const a2aAgents = assistants?.filter(a =>
+    a.assistantType === 'specialist' || a.assistantType === 'custom'
+  ) || null;
+
   // Load assistants on mount
   useEffect(() => {
     fetchAssistants();
@@ -206,6 +213,7 @@ export function useAssistants(): AssistantsState {
     loading,
     error,
     activeAssistant,
+    a2aAgents,
     refresh: fetchAssistants,
     setActiveAssistant,
     createAssistant,

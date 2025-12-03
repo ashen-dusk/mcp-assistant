@@ -233,6 +233,7 @@ export const MY_ASSISTANTS_QUERY = `
   query MyAssistants {
     myAssistants {
       id
+      assistantType
       name
       description
       instructions
@@ -248,6 +249,7 @@ export const CREATE_ASSISTANT_MUTATION = `
   mutation CreateAssistant(
     $name: String!
     $instructions: String!
+    $assistantType: String
     $description: String
     $isActive: Boolean
     $config: JSON
@@ -255,11 +257,13 @@ export const CREATE_ASSISTANT_MUTATION = `
     createAssistant(
       name: $name
       instructions: $instructions
+      assistantType: $assistantType
       description: $description
       isActive: $isActive
       config: $config
     ) {
       id
+      assistantType
       name
       description
       instructions
@@ -275,6 +279,7 @@ export const UPDATE_ASSISTANT_MUTATION = `
   mutation UpdateAssistant(
     $id: ID!
     $name: String
+    $assistantType: String
     $description: String
     $instructions: String
     $isActive: Boolean
@@ -283,12 +288,14 @@ export const UPDATE_ASSISTANT_MUTATION = `
     updateAssistant(
       id: $id
       name: $name
+      assistantType: $assistantType
       description: $description
       instructions: $instructions
       isActive: $isActive
       config: $config
     ) {
       id
+      assistantType
       name
       description
       instructions

@@ -57,8 +57,11 @@ export type ServerHealthInfo = {
 };
 
 // Assistant Types
+export type AssistantType = 'orchestrator' | 'specialist' | 'custom';
+
 export type Assistant = {
   id: string;
+  assistantType: AssistantType;
   name: string;
   description?: string | null;
   instructions: string;
@@ -66,6 +69,13 @@ export type Assistant = {
   config: any;
   createdAt: string;
   updatedAt: string;
+};
+
+// A2A Agent Config (stored in Assistant.config for specialist/tool_agent types)
+export type A2AAgentConfig = {
+  a2a_url: string;
+  skills?: string[];
+  agent_card?: any; // Full agent card from A2A validation (presence indicates validation)
 };
 
 // MCP Config format for MultiServerMCPClient
