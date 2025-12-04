@@ -2,6 +2,22 @@
  * A2A Agent Types
  */
 
+import { ActionRenderProps } from "@copilotkit/react-core";
+export type MessageActionRenderProps = ActionRenderProps<
+  [
+    {
+      readonly name: "agentName";
+      readonly type: "string";
+      readonly description: "The name of the A2A agent to send the message to";
+    },
+    {
+      readonly name: "task";
+      readonly type: "string";
+      readonly description: "The message to send to the A2A agent";
+    }
+  ]
+>;
+
 export interface A2AValidationResult {
   success: boolean;
   name?: string;

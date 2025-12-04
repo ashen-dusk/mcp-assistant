@@ -12,6 +12,7 @@ import { AssistantMessage } from "@/components/playground/ChatMessage";
 import { A2AAgentManager } from "@/components/playground/A2AAgentManager";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { A2AMessageRenderer } from "@/components/playground/a2a/A2AMessageRenderer";
 
 interface ChatInputWrapperProps {
   onSend: (message: string) => void;
@@ -40,8 +41,9 @@ const PlaygroundPage = () => {
   const askMode = activeAssistant?.config?.ask_mode;
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+
   // Extract A2A agents from active assistant config
-  const a2aAgents = (activeAssistant?.config as any)?.a2a_agents || null;
+  // const a2aAgents = (activeAssistant?.config as any)?.a2a_agents || null;
 
   return (
     <div className="flex h-[calc(100vh-64px)] gap-4">
@@ -78,8 +80,10 @@ const PlaygroundPage = () => {
           } as CopilotKitCSSProperties
         }
       >
+        {/* A2A Message Renderer */}
+        {<A2AMessageRenderer />}
         {/* Human-in-the-loop or tool renderer */}
-        {askMode ? <HumanInTheLoop /> : <ToolRenderer a2aAgents={a2aAgents} />}
+        {/* {(askMode) ? <HumanInTheLoop /> : <ToolRenderer />} */}
 
         <CopilotChat
           labels={{

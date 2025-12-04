@@ -55,6 +55,7 @@ const CodeSection = ({ title, content, onCopy }: { title: string; content: strin
 );
 
 export default function MCPToolCall({ status, name = "", args, result }: ToolCallProps) {
+  console.log(status, 'status of the tool call')
   const [isOpen, setIsOpen] = React.useState(false);
 
   const config = status === "complete" ? STATUS_CONFIGS.success : STATUS_CONFIGS.loading;

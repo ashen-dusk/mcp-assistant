@@ -46,7 +46,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <CopilotKit
-                publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
+                // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
                 agent="mcpAssistant"
                 runtimeUrl="/api/copilotkit"
                 showDevConsole={false}

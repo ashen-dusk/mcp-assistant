@@ -1,13 +1,6 @@
 import React from "react";
 import { getAgentStyle, truncateTask } from "./agent-styles";
-
-type MessageActionRenderProps = {
-  status: string;
-  args: {
-    agentName?: string;
-    task?: string;
-  };
-};
+import { MessageActionRenderProps } from "@/types/a2a";
 
 /**
  * Renders a message from the orchestrator to an A2A agent
@@ -22,10 +15,6 @@ export const MessageToA2A: React.FC<MessageActionRenderProps> = ({ status, args 
       break;
     default:
       return null;
-  }
-
-  if (!args.agentName || !args.task) {
-    return null;
   }
 
   const agentStyle = getAgentStyle(args.agentName);
