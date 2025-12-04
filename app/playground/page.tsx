@@ -9,10 +9,8 @@ import HumanInTheLoop from "@/components/playground/HumanInTheLoop";
 import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import { AssistantMessage } from "@/components/playground/ChatMessage";
-import { A2AAgentManager } from "@/components/playground/A2AAgentManager";
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { A2AMessageRenderer } from "@/components/playground/a2a/A2AMessageRenderer";
+import { PlaygroundSidebar } from "@/components/playground/PlaygroundSidebar";
 
 interface ChatInputWrapperProps {
   onSend: (message: string) => void;
@@ -37,50 +35,13 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
 };
 
 const PlaygroundPage = () => {
-  const { activeAssistant, agentState } = usePlayground();
+  const { activeAssistant } = usePlayground();
   const askMode = activeAssistant?.config?.ask_mode;
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  console.log('agentstate:', agentState)
-  // Extract A2A agents from active assistant config
-  // const a2aAgents = (activeAssistant?.config as any)?.a2a_agents || null;
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      {/* A2A Agent Manager Sidebar */}
-      <div
-        className={`transition-all duration-300 ${isSidebarOpen ? "w-80" : "w-12"
-          } border-r relative flex flex-col`}
-      >
-        {isSidebarOpen && (
-          <>
-            {/* Toggle Button - Integrated with sidebar header */}
-            <div className="flex items-center justify-end pt-3 pr-3 pb-2">
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="p-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
-                aria-label="Collapse sidebar"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="h-[calc(100%-56px)] pr-4 pl-4 overflow-y-auto">
-              <A2AAgentManager />
-            </div>
-          </>
-        )}
-
-        {/* Toggle Button - When collapsed */}
-        {!isSidebarOpen && (
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="absolute right-0 top-4 p-1.5 rounded-l-md bg-background border border-r-0 hover:bg-accent transition-colors cursor-pointer shadow-sm"
-            aria-label="Expand sidebar"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      {/* Sidebar */}
+      <PlaygroundSidebar />
 
       {/* Main Chat Area */}
       <div

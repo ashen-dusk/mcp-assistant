@@ -1,20 +1,8 @@
 "use client";
 import { useState } from "react";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
-import { Assistant } from "@/types/mcp";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle2, AlertCircle, Zap, Shield, Loader2, MoreVertical } from "lucide-react";
+import { Plus, CheckCircle2, MoreVertical, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   DropdownMenu,
@@ -22,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { A2ADialog } from "./dialogs/A2ADialog";
 
 type A2AAgentInfo = {
   name: string;
@@ -29,25 +18,102 @@ type A2AAgentInfo = {
   url: string;
 };
 
+type Skill = string | { name: string; [key: string]: any };
+
+type AgentCard = {
+  name: string;
+  description: string;
+  skills?: Skill[];
+  version?: string;
+};
+
+interface SkillItemProps {
+  skill: {
+    name: string;
+    description?: string;
+    examples?: string[];
+    [key: string]: any;
+  };
+}
+
+const SkillItem = ({ skill }: SkillItemProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasDetails = skill.description || (skill.examples && skill.examples.length > 0);
+
+  if (!hasDetails) {
+    // Simple skill without details
+    return (
+      <div className="border border-blue-500/20 rounded-md px-2 py-1.5 bg-blue-500/5">
+        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+          {skill.name}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-blue-500/20 rounded-md overflow-hidden bg-blue-500/5">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-blue-500/10 cursor-pointer"
+      >
+        {isExpanded ? (
+          <ChevronDown className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        ) : (
+          <ChevronRight className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        )}
+        <span className="text-xs font-medium text-blue-600 dark:text-blue-400 flex-1">
+          {skill.name}
+        </span>
+      </button>
+
+      {isExpanded && (
+        <div className="px-2 pb-2 space-y-2 border-t border-blue-500/20 pt-2">
+          {skill.description && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-0.5">Description:</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">{skill.description}</p>
+            </div>
+          )}
+
+          {skill.examples && skill.examples.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">Examples:</p>
+              <ul className="text-[10px] text-muted-foreground space-y-1 pl-3">
+                {skill.examples.map((example, idx) => (
+                  <li key={idx} className="list-disc">{example}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export function A2AAgentManager() {
-  const { activeAssistant, updateAssistant, refresh } = usePlayground();
+  const { activeAssistant, updateAssistant } = usePlayground();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [agentUrl, setAgentUrl] = useState("");
+  const [a2aUrl, setA2AUrl] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+
+  // Store agent card info (not persisted to backend)
+  const [agentCards, setAgentCards] = useState<Record<string, AgentCard>>({});
 
   // Get existing a2a_agents from active assistant's config
   const existingAgents: A2AAgentInfo[] =
     (activeAssistant?.config as any)?.a2a_agents || [];
 
   const handleValidateAndSave = async () => {
-    if (!agentUrl.trim()) {
+    if (!a2aUrl.trim()) {
       toast.error("Agent URL is required");
       return;
     }
 
     try {
       // Validate URL format
-      new URL(agentUrl);
+      new URL(a2aUrl);
 
       setIsValidating(true);
 
@@ -58,7 +124,7 @@ export function A2AAgentManager() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ agentUrl }),
+        body: JSON.stringify({ agentUrl: a2aUrl }),
       });
 
       const validationResult = await validationResponse.json();
@@ -75,16 +141,22 @@ export function A2AAgentManager() {
       const agentName = agentCard?.name || "Unknown Agent";
       const agentDescription = agentCard?.description || "";
 
+      // Store agent card info in state
+      setAgentCards(prev => ({
+        ...prev,
+        [a2aUrl]: agentCard,
+      }));
+
       toast.success(`Agent validated: ${agentName}`);
 
       // Check if agent already exists (by URL)
       const updatedAgents = [...existingAgents];
-      const existingIdx = updatedAgents.findIndex(a => a.url === agentUrl);
+      const existingIdx = updatedAgents.findIndex(a => a.url === a2aUrl);
 
       const newAgent: A2AAgentInfo = {
         name: agentName,
         description: agentDescription,
-        url: agentUrl,
+        url: a2aUrl,
       };
 
       if (existingIdx !== -1) {
@@ -109,11 +181,10 @@ export function A2AAgentManager() {
         },
       });
 
-      setAgentUrl("");
       setIsAddDialogOpen(false);
+      setA2AUrl("");
       setIsValidating(false);
       toast.success("A2A agent saved successfully");
-      await refresh();
     } catch (error) {
       setIsValidating(false);
       if (error instanceof TypeError) {
@@ -130,22 +201,26 @@ export function A2AAgentManager() {
     const agentToDelete = existingAgents.find(a => a.url === agentUrl);
     if (!agentToDelete) return;
 
-    if (confirm(`Are you sure you want to remove ${agentToDelete.name}?`)) {
-      try {
-        const updatedAgents = existingAgents.filter(a => a.url !== agentUrl);
+    try {
+      const updatedAgents = existingAgents.filter(a => a.url !== agentUrl);
 
-        await updateAssistant(activeAssistant.id, {
-          config: {
-            ...(activeAssistant.config as any),
-            a2a_agents: updatedAgents,
-          },
-        });
+      await updateAssistant(activeAssistant.id, {
+        config: {
+          ...(activeAssistant.config as any),
+          a2a_agents: updatedAgents,
+        },
+      });
 
-        toast.success("A2A agent removed");
-        await refresh();
-      } catch (error) {
-        toast.error("Failed to remove A2A agent");
-      }
+      // Clean up agent card
+      setAgentCards(prev => {
+        const updated = { ...prev };
+        delete updated[agentUrl];
+        return updated;
+      });
+
+      toast.success("A2A agent removed");
+    } catch (error) {
+      toast.error("Failed to remove A2A agent");
     }
   };
 
@@ -168,22 +243,14 @@ export function A2AAgentManager() {
       if (validationResponse.ok && validationResult.success) {
         const agentCard = validationResult.agentCard;
         const agentName = agentCard?.name || agent.name;
-        const agentDescription = agentCard?.description || '';
-        const agentVersion = agentCard?.version || '';
-        const capabilities = agentCard?.capabilities || {};
 
-        toast.success(
-          <div className="space-y-1">
-            <div className="font-semibold">{agentName} is online!</div>
-            {agentDescription && (
-              <div className="text-xs text-gray-600">{agentDescription}</div>
-            )}
-            <div className="text-xs text-gray-500">
-              {agentVersion ? `Version: ${agentVersion}` : 'A2A Agent'} | {capabilities.streaming ? 'Streaming ✓' : ''}
-            </div>
-          </div>,
-          { duration: 5000 }
-        );
+        // Store/update agent card info in state
+        setAgentCards(prev => ({
+          ...prev,
+          [agent.url]: agentCard,
+        }));
+
+        toast.success(`${agentName} is online!`);
       } else {
         toast.error(validationResult.error || `Failed to connect to ${agent.name}`);
       }
@@ -197,65 +264,26 @@ export function A2AAgentManager() {
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">A2A Agents</h3>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline" disabled={!activeAssistant} className="cursor-pointer">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Agent
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add A2A Agent</DialogTitle>
-              <DialogDescription>
-                Enter the agent URL to validate and connect to a remote A2A agent
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="url">Agent URL *</Label>
-                <Input
-                  id="url"
-                  placeholder="http://localhost:9001"
-                  value={agentUrl}
-                  onChange={(e) => setAgentUrl(e.target.value)}
-                  disabled={isValidating}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Agent name and description will be fetched automatically after validation
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsAddDialogOpen(false);
-                  setAgentUrl("");
-                }}
-                disabled={isValidating}
-                className="cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleValidateAndSave}
-                disabled={isValidating || !agentUrl.trim()}
-                className="cursor-pointer"
-              >
-                {isValidating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Validating...
-                  </>
-                ) : (
-                  "Validate & Save"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!activeAssistant}
+          onClick={() => setIsAddDialogOpen(true)}
+          className="cursor-pointer"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Agent
+        </Button>
       </div>
+
+      <A2ADialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        a2aUrl={a2aUrl}
+        setA2AUrl={setA2AUrl}
+        isValidating={isValidating}
+        onValidateAndSave={handleValidateAndSave}
+      />
 
       {/* A2A Agents List */}
       <div className="space-y-2">
@@ -269,6 +297,7 @@ export function A2AAgentManager() {
           </div>
         ) : (
           existingAgents.map((agent: A2AAgentInfo) => {
+            const agentCard = agentCards[agent.url];
             return (
               <div
                 key={agent.url}
@@ -314,6 +343,23 @@ export function A2AAgentManager() {
                   <p className="text-xs text-muted-foreground mb-2 line-clamp-2 pl-5">
                     {agent.description}
                   </p>
+                )}
+
+                {/* Skills */}
+                {agentCard?.skills && agentCard.skills.length > 0 && (
+                  <div className="pl-5 mb-2">
+                    <p className="text-[10px] font-medium text-muted-foreground mb-2">Skills:</p>
+                    <div className="space-y-1.5">
+                      {agentCard.skills.map((skill, idx) => {
+                        const skillData = typeof skill === 'string'
+                          ? { name: skill }
+                          : skill;
+                        return (
+                          <SkillItem key={idx} skill={skillData} />
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
 
                 {/* URL */}
