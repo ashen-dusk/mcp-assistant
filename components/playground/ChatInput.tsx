@@ -327,14 +327,28 @@ export default function ChatInput({
     return AVAILABLE_MODELS;
   }, [activeAssistant]);
 
-  // Auto-select custom model when assistant has llm_name
+  // Auto-select model based on assistant configuration
   React.useEffect(() => {
     const customLlmName = activeAssistant?.config?.llm_name;
-    if (customLlmName && customLlmName.trim() && selectedModel !== customLlmName) {
-      setSelectedModel(customLlmName);
-      setState({ ...state, model: customLlmName });
+
+    if (customLlmName && customLlmName.trim()) {
+      // Assistant has custom llm_name, switch to it
+      if (selectedModel !== customLlmName) {
+        setSelectedModel(customLlmName);
+      }
+    } else {
+      // Assistant doesn't have llm_name, ensure we're using a default model
+      const isSelectedModelInDefaults = AVAILABLE_MODELS.some(m => m.id === selectedModel);
+      if (!isSelectedModelInDefaults) {
+        // Current model is not in defaults, reset to first default model
+        const defaultModel = AVAILABLE_MODELS[0]?.id;
+        if (defaultModel) {
+          setSelectedModel(defaultModel);
+        }
+      }
     }
-  }, [activeAssistant, selectedModel, setSelectedModel, setState, state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAssistant?.id, activeAssistant?.config?.llm_name]);
 
   return (
     <>
