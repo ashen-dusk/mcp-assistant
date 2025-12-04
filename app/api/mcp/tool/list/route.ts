@@ -48,6 +48,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get valid tokens before making request
+    try {
+      const tokenValid = await client.getValidTokens();
+      if (!tokenValid) {
+        console.warn('[List Tools] Token invalid and refresh failed for sessionId:', sessionId);
+      } else {
+        // If token was refreshed, update it in session store
+        const oauthProvider = client.oauthProvider;
+        if (oauthProvider) {
+          const tokens = oauthProvider.tokens();
+          if (tokens) {
+            await sessionStore.updateTokens(sessionId, tokens);
+            console.log('[List Tools] Updated refreshed tokens for sessionId:', sessionId);
+          }
+        }
+      }
+    } catch (refreshError) {
+      console.log('[List Tools] Token refresh check failed:', refreshError);
+    }
+
     try {
       // List tools from the MCP server
       console.log('[List Tools] Fetching tools from MCP server...');

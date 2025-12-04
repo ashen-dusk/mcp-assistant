@@ -3,9 +3,9 @@ import { sessionStore } from '@/lib/mcp/session-store';
 import type { McpConfig, McpServerConfig } from '@/types/mcp';
 
 /**
- * POST /api/mcp/secure-config
+ * POST /api/mcp/server-config
  *
- * Converts client-side MCP config (with sessionIds) to secure config with credentials
+ * Converts client-side MCP config (with sessionIds) to server config with credentials
  * This endpoint runs server-side only and never exposes tokens to the client
  *
  * Request body:
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       const { transport, url, sessionId } = config;
 
       if (!sessionId) {
-        console.warn(`[Secure Config] No sessionId for server: ${serverName}`);
+        console.warn(`[Server Config] No sessionId for server: ${serverName}`);
         // Include server without headers if no sessionId
         serverConfig[serverName] = { transport, url };
         continue;
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         const client = await sessionStore.getClient(sessionId);
 
         if (!client) {
-          console.warn(`[Secure Config] Client not found for sessionId: ${sessionId}`);
+          console.warn(`[Server Config] Client not found for sessionId: ${sessionId}`);
           // Include server without headers if client not found
           serverConfig[serverName] = { transport, url };
           continue;
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         try {
           const tokenValid = await client.getValidTokens();
           if (!tokenValid) {
-            console.warn(`[Secure Config] Token invalid and refresh failed for ${serverName}`);
+            console.warn(`[Server Config] Token invalid and refresh failed for ${serverName}`);
           } else {
             // If token was refreshed, update it in session store
             const oauthProvider = client.oauthProvider;
@@ -72,12 +72,12 @@ export async function POST(request: NextRequest) {
               const tokens = oauthProvider.tokens();
               if (tokens) {
                 await sessionStore.updateTokens(sessionId, tokens);
-                console.log(`[Secure Config] Updated refreshed tokens for ${serverName}`);
+                console.log(`[Server Config] Updated refreshed tokens for ${serverName}`);
               }
             }
           }
         } catch (refreshError) {
-          console.log(`[Secure Config] Token refresh check failed for ${serverName}:`, refreshError);
+          console.log(`[Server Config] Token refresh check failed for ${serverName}:`, refreshError);
         }
 
         // Extract OAuth headers if available
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
             }
           }
         } catch (headerError) {
-          console.log(`[Secure Config] Could not fetch OAuth headers for ${serverName}:`, headerError);
+          console.log(`[Server Config] Could not fetch OAuth headers for ${serverName}:`, headerError);
         }
 
         // Build server config entry
@@ -106,10 +106,10 @@ export async function POST(request: NextRequest) {
           ...(headers && { headers })
         };
 
-        console.log(`[Secure Config] Added server config for ${serverName}`);
+        console.log(`[Server Config] Added server config for ${serverName}`);
 
       } catch (error) {
-        console.error(`[Secure Config] Error processing ${serverName}:`, error);
+        console.error(`[Server Config] Error processing ${serverName}:`, error);
         // Include server without headers on error
         serverConfig[serverName] = { transport, url };
       }
@@ -118,12 +118,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ serverConfig });
 
   } catch (error: unknown) {
-    console.error('[Secure Config] Unexpected error:', error);
+    console.error('[Server Config] Unexpected error:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     return NextResponse.json(
-      { error: 'Failed to process secure config' },
+      { error: 'Failed to process server config' },
       { status: 500 }
     );
   }

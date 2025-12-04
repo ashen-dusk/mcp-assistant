@@ -18,6 +18,7 @@ import type {
 export class InMemoryOAuthClientProvider implements OAuthClientProvider {
   private _clientInformation?: OAuthClientInformationFull;
   private _tokens?: OAuthTokens;
+  private _tokenExpiresAt?: number; // Track when the token expires (timestamp in ms)
   private _codeVerifier?: string;
   private _state?: string;
   private _onRedirect: (url: URL) => void;
@@ -83,6 +84,34 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
    */
   saveTokens(tokens: OAuthTokens): void {
     this._tokens = tokens;
+
+    // Calculate token expiration time if expires_in is provided
+    if (tokens.expires_in) {
+      // expires_in is in seconds, convert to milliseconds
+      // Subtract 5 minutes as a buffer to refresh before actual expiration
+      const bufferMs = 5 * 60 * 1000; // 5 minutes
+      this._tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+    } else {
+      // If no expires_in, assume token expires in 1 hour (conservative default)
+      this._tokenExpiresAt = Date.now() + (60 * 60 * 1000);
+    }
+  }
+
+  /**
+   * Check if the current access token is expired or about to expire
+   */
+  isTokenExpired(): boolean {
+    if (!this._tokens || !this._tokenExpiresAt) {
+      return false; // No tokens to expire
+    }
+    return Date.now() >= this._tokenExpiresAt;
+  }
+
+  /**
+   * Get the token expiration timestamp
+   */
+  getTokenExpiresAt(): number | undefined {
+    return this._tokenExpiresAt;
   }
 
   /**

@@ -1,7 +1,12 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { UnauthorizedError as SDKUnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
+import {
+  UnauthorizedError as SDKUnauthorizedError,
+  refreshAuthorization,
+  discoverOAuthProtectedResourceMetadata,
+  discoverAuthorizationServerMetadata
+} from '@modelcontextprotocol/sdk/client/auth.js';
 import {
   ListToolsRequest,
   ListToolsResult,
@@ -188,12 +193,30 @@ export class MCPOAuthClient {
       throw new Error('Not connected to server');
     }
 
+    // Get valid tokens before making request
+    await this.getValidTokens();
+
     const request: ListToolsRequest = {
       method: 'tools/list',
       params: {},
     };
 
-    return await this.client.request(request, ListToolsResultSchema);
+    try {
+      return await this.client.request(request, ListToolsResultSchema);
+    } catch (error) {
+      // If unauthorized, try refreshing token once and retry
+      if (error instanceof SDKUnauthorizedError ||
+          (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+        console.log('[OAuth Client] Received 401, attempting token refresh...');
+        const refreshed = await this.refreshToken();
+
+        if (refreshed) {
+          await this.reconnect();
+          return await this.client.request(request, ListToolsResultSchema);
+        }
+      }
+      throw error;
+    }
   }
 
   /**
@@ -211,6 +234,9 @@ export class MCPOAuthClient {
       throw new Error('Not connected to server');
     }
 
+    // Get valid tokens before making request
+    await this.getValidTokens();
+
     const request: CallToolRequest = {
       method: 'tools/call',
       params: {
@@ -219,7 +245,98 @@ export class MCPOAuthClient {
       },
     };
 
-    return await this.client.request(request, CallToolResultSchema);
+    try {
+      return await this.client.request(request, CallToolResultSchema);
+    } catch (error) {
+      // If unauthorized, try refreshing token once and retry
+      if (error instanceof SDKUnauthorizedError ||
+          (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+        console.log('[OAuth Client] Received 401, attempting token refresh...');
+        const refreshed = await this.refreshToken();
+
+        if (refreshed) {
+          await this.reconnect();
+          return await this.client.request(request, CallToolResultSchema);
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Refresh the access token using the refresh token
+   *
+   * @returns True if refresh was successful, false otherwise
+   */
+  async refreshToken(): Promise<boolean> {
+    if (!this.oauthProvider) {
+      console.error('[OAuth Client] Cannot refresh: OAuth provider not initialized');
+      return false;
+    }
+
+    const tokens = this.oauthProvider.tokens();
+    if (!tokens || !tokens.refresh_token) {
+      console.error('[OAuth Client] Cannot refresh: No refresh token available');
+      return false;
+    }
+
+    const clientInformation = this.oauthProvider.clientInformation();
+    if (!clientInformation) {
+      console.error('[OAuth Client] Cannot refresh: No client information available');
+      return false;
+    }
+
+    try {
+      console.log('[OAuth Client] Refreshing access token...');
+
+      // Discover OAuth metadata from the server
+      const resourceMetadata = await discoverOAuthProtectedResourceMetadata(this.serverUrl);
+      const authServerUrl = resourceMetadata?.authorization_servers?.[0] || this.serverUrl;
+      const authMetadata = await discoverAuthorizationServerMetadata(authServerUrl);
+
+      // Use the MCP SDK's refreshAuthorization function
+      const newTokens = await refreshAuthorization(authServerUrl, {
+        metadata: authMetadata,
+        clientInformation,
+        refreshToken: tokens.refresh_token,
+      });
+
+      // Save the new tokens
+      this.oauthProvider.saveTokens(newTokens);
+      console.log('[OAuth Client] ✅ Token refresh successful');
+
+      return true;
+    } catch (error) {
+      console.error('[OAuth Client] ❌ Token refresh failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get valid tokens, refreshing if expired
+   *
+   * @returns True if tokens are valid (either not expired or successfully refreshed)
+   */
+  async getValidTokens(): Promise<boolean> {
+    if (!this.oauthProvider) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (this.oauthProvider.isTokenExpired()) {
+      console.log('[OAuth Client] Token expired, attempting refresh...');
+      const refreshed = await this.refreshToken();
+
+      if (refreshed) {
+        // Reconnect with new tokens
+        await this.reconnect();
+        return true;
+      }
+
+      return false;
+    }
+
+    return true; // Token is still valid
   }
 
   /**
