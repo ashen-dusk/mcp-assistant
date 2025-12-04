@@ -36,6 +36,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
   }, [selection]);
 
   // Build MCP config dict from servers that have selected tools
+  // NOTE: Headers are NOT included - they will be fetched server-side for security
   const buildMcpConfig = (selectedToolNames: string[]): McpConfig => {
     const config: McpConfig = {};
     const serversWithSelectedTools = new Set<string>();
@@ -48,14 +49,14 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
       }
     });
 
-    // Build config for those servers
+    // Build config for those servers (without headers/credentials)
     mcpServers
       .filter(server => serversWithSelectedTools.has(server.serverName))
       .forEach(server => {
         config[server.serverName] = {
           transport: server.transport || 'sse',
           url: server.url || '',
-          ...(server.headers && { headers: server.headers }),
+          sessionId: server.sessionId, // Include sessionId to fetch credentials server-side
         };
       });
 

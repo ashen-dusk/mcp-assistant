@@ -78,12 +78,21 @@ export type A2AAgentConfig = {
   agent_card?: any; // Full agent card from A2A validation (presence indicates validation)
 };
 
-// MCP Config format for MultiServerMCPClient
+// MCP Config format for MultiServerMCPClient (client-side, no credentials)
 export type McpConfig = {
   [serverName: string]: {
     transport: string; // "sse" | "websocket" | "streamable_http"
     url: string;
-    headers?: Record<string, string>;
+    sessionId: string; // Session ID to fetch credentials server-side
+  };
+};
+
+// MCP Server Config with credentials (server-side only)
+export type McpServerConfig = {
+  [serverName: string]: {
+    transport: string;
+    url: string;
+    headers?: Record<string, string>; // Credentials only on server
   };
 };
 

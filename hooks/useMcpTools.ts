@@ -10,10 +10,9 @@ export interface McpServerWithTools {
   connectionStatus: string;
   tools: ToolInfo[];
   connectedAt: string;
-  // Server config fields for backend
+  // Server config fields for backend (NO headers - fetched server-side)
   transport?: string;
   url?: string;
-  headers?: Record<string, string> | null;
 }
 
 export interface UseMcpToolsReturn {
@@ -24,7 +23,8 @@ export interface UseMcpToolsReturn {
 
 /**
  * Hook to get all active MCP servers and their tools from connection store
- * OAuth headers are fetched from server-side session and kept in memory only (not localStorage)
+ * NOTE: OAuth headers are NOT fetched client-side for security
+ * Headers are retrieved server-side in the CopilotKit route
  */
 export function useMcpTools(): UseMcpToolsReturn {
   const [mcpServers, setMcpServers] = useState<McpServerWithTools[]>([]);
@@ -37,8 +37,8 @@ export function useMcpTools(): UseMcpToolsReturn {
     }
 
     try {
-      // Validate all stored connections and get tools/headers data in one call
-      // This returns Map<serverName, {tools, headers}>
+      // Validate all stored connections and get tools data in one call
+      // This returns Map<serverName, {tools}> (NO headers for security)
       const validServersData = await connectionStore.getValidConnections();
 
       if (validServersData.size === 0) {
@@ -65,7 +65,7 @@ export function useMcpTools(): UseMcpToolsReturn {
           connectedAt: connection.connectedAt,
           transport: connection.transport,
           url: connection.url,
-          headers: data.headers, // Headers from validation call
+          // NO headers - they're fetched server-side for security
         } as McpServerWithTools;
       }).filter((server): server is McpServerWithTools => server !== null);
 
