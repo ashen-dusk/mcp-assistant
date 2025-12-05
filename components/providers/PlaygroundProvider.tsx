@@ -30,7 +30,7 @@ export function PlaygroundProvider({ children }: PropsWithChildren) {
   const [toolSelection, setToolSelection] = useState<MCPToolSelection>({
     selectedServers: [],
     selectedTools: [],
-    mcpConfig: {},
+    mcpSessions: [],
   });
 
   // Helper functions
@@ -102,8 +102,8 @@ export function PlaygroundProvider({ children }: PropsWithChildren) {
           llm_api_key: getLLMConfig().apiKey || activeAssistant.config?.llm_api_key,
         }
       } : null,
-      mcp_config: toolSelection.mcpConfig,
       selectedTools: toolSelection.selectedTools,
+      mcpSessions: toolSelection.mcpSessions,
     },
   });
 
@@ -124,8 +124,8 @@ export function PlaygroundProvider({ children }: PropsWithChildren) {
       status: agentState.status,
       sessionId: agentState.sessionId,
       assistant: updatedAssistant,
-      mcp_config: agentState.mcp_config,
       selectedTools: agentState.selectedTools,
+      mcpSessions: agentState.mcpSessions,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAssistant]);

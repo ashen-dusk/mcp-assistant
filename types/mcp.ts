@@ -102,8 +102,8 @@ export type AgentState = {
   status?: string;
   sessionId: string;
   assistant?: Assistant | null;
-  mcp_config?: McpConfig; // MCP config dict for MultiServerMCPClient
   selectedTools?: string[]; // Selected tool names to filter
+  mcpSessions?: string[]; // Array of MCP server sessionIds
   llm_provider?: string; // LLM provider (openai, deepseek, etc.)
   llm_api_key?: string; // User's API key for the provider
   current_tool_call?: {name: string, args: any, result: any} | null;

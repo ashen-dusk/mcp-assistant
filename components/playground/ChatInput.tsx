@@ -123,11 +123,11 @@ export default function ChatInput({
 
   const handleToolSelectionChange = (newSelection: MCPToolSelection) => {
     setToolSelection(newSelection);
-    // Update coagent state with new MCP config and selected tools
+    // Update coagent state with selected tools and MCP sessions
     setState({
       ...state,
-      mcp_config: newSelection.mcpConfig,
       selectedTools: newSelection.selectedTools,
+      mcpSessions: newSelection.mcpSessions,
     });
   };
 
