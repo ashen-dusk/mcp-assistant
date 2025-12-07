@@ -57,8 +57,11 @@ export type ServerHealthInfo = {
 };
 
 // Assistant Types
+export type AssistantType = 'orchestrator' | 'specialist' | 'custom';
+
 export type Assistant = {
   id: string;
+  assistantType: AssistantType;
   name: string;
   description?: string | null;
   instructions: string;
@@ -68,12 +71,28 @@ export type Assistant = {
   updatedAt: string;
 };
 
-// MCP Config format for MultiServerMCPClient
+// A2A Agent Config (stored in Assistant.config for specialist/tool_agent types)
+export type A2AAgentConfig = {
+  a2a_url: string;
+  skills?: string[];
+  agent_card?: any; // Full agent card from A2A validation (presence indicates validation)
+};
+
+// MCP Config format for MultiServerMCPClient (client-side, no credentials)
 export type McpConfig = {
   [serverName: string]: {
     transport: string; // "sse" | "websocket" | "streamable_http"
     url: string;
-    headers?: Record<string, string>;
+    sessionId: string; // Session ID to fetch credentials server-side
+  };
+};
+
+// MCP Server Config with credentials (server-side only)
+export type McpServerConfig = {
+  [serverName: string]: {
+    transport: string;
+    url: string;
+    headers?: Record<string, string>; // Credentials only on server
   };
 };
 
@@ -83,13 +102,100 @@ export type AgentState = {
   status?: string;
   sessionId: string;
   assistant?: Assistant | null;
-  mcp_config?: McpConfig; // MCP config dict for MultiServerMCPClient
   selectedTools?: string[]; // Selected tool names to filter
+  mcpSessions?: string[]; // Array of MCP server sessionIds
   llm_provider?: string; // LLM provider (openai, deepseek, etc.)
   llm_api_key?: string; // User's API key for the provider
+  current_tool_call?: {name: string, args: any, result: any} | null;
 };
 
 export interface Tool {
   name: string;
   description: string;
 }
+
+// MCP Registry API Types (actual API schema)
+export type RegistryServerPackage = {
+  registryType?: string;
+  identifier?: string;
+  transport?: {
+    type: "stdio" | "sse" | "streamable-http";
+  };
+  environmentVariables?: {
+    name: string;
+    description?: string;
+    format?: string;
+    isSecret?: boolean;
+  }[];
+};
+
+export type RegistryServerRemote = {
+  type: "streamable-http" | "sse";
+  url: string;
+};
+
+export type RegistryServerRepository = {
+  url?: string;
+  source?: string;
+};
+
+export type RegistryServerIcon = {
+  src: string;
+  mimeType?: "image/png" | "image/jpeg" | "image/jpg" | "image/svg+xml" | "image/webp";
+  sizes?: string[];
+  theme?: "light" | "dark";
+};
+
+export type RegistryServerData = {
+  $schema?: string;
+  name: string;
+  description?: string;
+  title?: string;
+  icons?: RegistryServerIcon[];
+  repository?: RegistryServerRepository;
+  version: string;
+  packages?: RegistryServerPackage[];
+  remotes?: RegistryServerRemote[];
+  websiteUrl?: string;
+};
+
+export type RegistryServerMeta = {
+  "io.modelcontextprotocol.registry/official": {
+    status: string;
+    publishedAt: string;
+    updatedAt: string;
+    isLatest: boolean;
+  };
+};
+
+export type RegistryServerEntry = {
+  server: RegistryServerData;
+  _meta: RegistryServerMeta;
+};
+
+export type RegistryListResponse = {
+  servers: RegistryServerEntry[];
+  metadata: {
+    nextCursor?: string;
+    count: number;
+  };
+};
+
+// Parsed/simplified types for UI
+export type ParsedRegistryServer = {
+  id: string;
+  name: string;
+  vendor: string;
+  title: string | null;
+  description: string | null;
+  version: string;
+  iconUrl: string | null;
+  repositoryUrl: string | null;
+  websiteUrl: string | null;
+  hasRemote: boolean;
+  hasPackage: boolean;
+  remoteUrl: string | null;
+  publishedAt: string;
+  updatedAt: string;
+  isLatest: boolean;
+};

@@ -9,6 +9,8 @@ import HumanInTheLoop from "@/components/playground/HumanInTheLoop";
 import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import { AssistantMessage } from "@/components/playground/ChatMessage";
+import { A2AMessageRenderer } from "@/components/playground/a2a/A2AMessageRenderer";
+import { PlaygroundSidebar } from "@/components/playground/PlaygroundSidebar";
 
 interface ChatInputWrapperProps {
   onSend: (message: string) => void;
@@ -27,42 +29,46 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
         onSendMessage={onSend}
         pushToTalkState={pushToTalkState}
         onPushToTalkStateChange={setPushToTalkState}
-        />
+      />
     </div>
   );
 };
 
 const PlaygroundPage = () => {
-  
   const { activeAssistant } = usePlayground();
   const askMode = activeAssistant?.config?.ask_mode;
 
   return (
-    <div
-      className="max-w-2xl mx-auto"
-      style={
-        {
-          "--copilot-kit-background-color": "var(--background)",
-        } as CopilotKitCSSProperties
-      }
-    >
-      {/* Render plan state if agent is using plan-and-execute mode */}
-      {/* note MCPToolCall component doesn't get triggered with plan-and-execute */}
-      {/* <PlanStateRenderer /> */}
+    <div className="flex h-[calc(100vh-64px)]">
+      {/* Sidebar */}
+      <PlaygroundSidebar />
 
-      {/* Human-in-the-loop or tool renderer */}
-      {askMode ? <HumanInTheLoop /> : <ToolRenderer />}
+      {/* Main Chat Area */}
+      <div
+        className="flex-1 max-w-2xl mx-auto px-4"
+        style={
+          {
+            "--copilot-kit-background-color": "var(--background)",
+          } as CopilotKitCSSProperties
+        }
+      >
+        {/* Human-in-the-loop or tool renderer */}
+        {(askMode) ? <HumanInTheLoop /> : <ToolRenderer />}
 
-      <CopilotChat
-        labels={{
-          initial: "Hello! I am your MCP assistant. How can I help you today?",
-          title: "MCP Playground",
-          placeholder: "Ask about your connected servers...",
-        }}
-        className="h-[84vh] rounded-md"
-        Input={ChatInputWrapper}
-        AssistantMessage={AssistantMessage}
-      />
+        {/* A2A Message Renderer - Registers tool renderer for send_message_to_a2a_agent */}
+        <A2AMessageRenderer />
+
+        <CopilotChat
+          labels={{
+            initial: "Hello! I am your MCP assistant. How can I help you today?",
+            title: "MCP Playground",
+            placeholder: "Ask about your connected servers...",
+          }}
+          className="h-[84vh] rounded-md"
+          Input={ChatInputWrapper}
+          AssistantMessage={AssistantMessage}
+        />
+      </div>
     </div>
   );
 };

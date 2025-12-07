@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Shield, Edit, Trash2 } from "lucide-react";
 import { McpServer } from "@/types/mcp";
-import { ServerIcon } from "./ServerIcon";
+import { ServerIcon } from "@/components/common/ServerIcon";
 import { Button } from "@/components/ui/button";
 
 interface ServerListItemProps {
@@ -27,7 +27,7 @@ export function ServerListItem({
     const upperStatus = status?.toUpperCase();
     if (upperStatus === "CONNECTED") return "bg-green-500 animate-pulse";
     if (upperStatus === "FAILED") return "bg-red-500 animate-pulse";
-    return "bg-yellow-500";
+    return "hidden";
   };
 
   return (

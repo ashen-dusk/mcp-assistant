@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowUp,
@@ -33,48 +33,27 @@ export default function ChatInput({
   pushToTalkState = "idle",
   onPushToTalkStateChange
 }: CustomChatInputProps) {
-
   // Generate sessionId for authenticated or anonymous users (browser only)
   const { data: session } = useSession();
-  const getSessionId = (session: Session | null) => {
-    if (typeof window === "undefined") return undefined;
 
-    const sessionId = localStorage.getItem("copilotkit-session");
+  // Fetch assistants and shared state from context
+  const {
+    assistants,
+    activeAssistant,
+    setActiveAssistant,
+    createAssistant,
+    updateAssistant,
+    deleteAssistant,
+    loading,
+    selectedModel,
+    setSelectedModel,
+    toolSelection,
+    setToolSelection,
+    agentState: state,
+    setAgentState: setState
+  } = usePlayground();
 
-    if (session?.user?.email) {
-    // Authenticated user
-    const email = session.user.email;
-    const derivedId = email.endsWith("@gmail.com")
-      ? email.replace(/@gmail\.com$/, "")
-      : email;
-    localStorage.setItem("copilotkit-session", derivedId);
-    return derivedId;
-
-  } else {
-    // Anonymous user
-    if (!sessionId) {
-      const randomId = crypto.randomUUID();
-      localStorage.setItem("copilotkit-session", randomId);
-      return randomId;
-    }
-    return sessionId;
-  }
-  };
-
-  // Fetch assistants from context
-  const { assistants, activeAssistant, setActiveAssistant, createAssistant, updateAssistant, deleteAssistant, loading } = usePlayground();
-
-  // Separate state for model - independent of coagent state
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
-
-  // MCP tool selection state
-  const [toolSelection, setToolSelection] = useState<MCPToolSelection>({
-    selectedServers: [],
-    selectedTools: [],
-    mcpConfig: {},
-  });
-
-  // Get LLM config from localStorage or assistant config
+  // Helper to get LLM config for assistant updates (still needed for saving)
   const getLLMConfig = () => {
     if (typeof window === "undefined") return { provider: undefined, apiKey: undefined };
 
@@ -103,49 +82,6 @@ export default function ChatInput({
     return { provider: undefined, apiKey: undefined };
   };
 
-  const { state, setState } = useCoAgent<AgentState>({
-    name: "mcpAssistant",
-    initialState: {
-      model: selectedModel,
-      status: undefined,
-      sessionId: getSessionId(session),
-      assistant: activeAssistant ? {
-        ...activeAssistant,
-        config: {
-          ...activeAssistant.config,
-          llm_provider: getLLMConfig().provider || activeAssistant.config?.llm_provider,
-          llm_api_key: getLLMConfig().apiKey || activeAssistant.config?.llm_api_key,
-        }
-      } : null,
-      mcp_config: toolSelection.mcpConfig,
-      selectedTools: toolSelection.selectedTools,
-    },
-  });
-
-  console.log(state, 'state');
-  // Update coagent state when active assistant changes
-  useEffect(() => {
-    const llmConfig = getLLMConfig();
-    const updatedAssistant = activeAssistant ? {
-      ...activeAssistant,
-      config: {
-        ...activeAssistant.config,
-        llm_provider: llmConfig.provider || activeAssistant.config?.llm_provider,
-        llm_api_key: llmConfig.apiKey || activeAssistant.config?.llm_api_key,
-      }
-    } : null;
-
-    setState({
-      model: selectedModel,
-      status: state.status,
-      sessionId: state.sessionId,
-      assistant: updatedAssistant,
-      mcp_config: state.mcp_config,
-      selectedTools: state.selectedTools,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAssistant?.id]);
-
   const [message, setMessage] = useState("");
   const [dropdownState, setDropdownState] = useState<"model" | "assistant" | "mcp" | null>(null);
   const [dialogState, setDialogState] = useState<"auth" | "assistant" | "delete" | null>(null);
@@ -169,7 +105,7 @@ export default function ChatInput({
     // Update local state
     setSelectedModel(modelId);
     // Push to coagent state
-    setState({...state, model: modelId});
+    setState({ ...state, model: modelId });
     setDropdownState(null);
   };
 
@@ -187,11 +123,11 @@ export default function ChatInput({
 
   const handleToolSelectionChange = (newSelection: MCPToolSelection) => {
     setToolSelection(newSelection);
-    // Update coagent state with new MCP config and selected tools
+    // Update coagent state with selected tools and MCP sessions
     setState({
       ...state,
-      mcp_config: newSelection.mcpConfig,
       selectedTools: newSelection.selectedTools,
+      mcpSessions: newSelection.mcpSessions,
     });
   };
 
@@ -226,6 +162,7 @@ export default function ChatInput({
         datetime_context: assistant.config?.datetime_context !== undefined ? assistant.config.datetime_context : true,
         llm_provider: assistant.config?.llm_provider,
         llm_api_key: assistant.config?.llm_api_key,
+        llm_name: assistant.config?.llm_name,
       }
     });
     setDropdownState(null);
@@ -373,6 +310,46 @@ export default function ChatInput({
     }
   };
 
+  // Determine which models to show in the dropdown
+  const modelsToShow = React.useMemo(() => {
+    const customLlmName = activeAssistant?.config?.llm_name;
+    if (customLlmName && customLlmName.trim()) {
+      // Show only the specified LLM
+      return [{
+        id: customLlmName,
+        name: customLlmName,
+        description: `Model configured for ${activeAssistant.name}`,
+        provider: activeAssistant?.config?.llm_provider || "OpenAI",
+        tag: "Configured"
+      }];
+    }
+    // Show default models
+    return AVAILABLE_MODELS;
+  }, [activeAssistant]);
+
+  // Auto-select model based on assistant configuration
+  React.useEffect(() => {
+    const customLlmName = activeAssistant?.config?.llm_name;
+
+    if (customLlmName && customLlmName.trim()) {
+      // Assistant has custom llm_name, switch to it
+      if (selectedModel !== customLlmName) {
+        setSelectedModel(customLlmName);
+      }
+    } else {
+      // Assistant doesn't have llm_name, ensure we're using a default model
+      const isSelectedModelInDefaults = AVAILABLE_MODELS.some(m => m.id === selectedModel);
+      if (!isSelectedModelInDefaults) {
+        // Current model is not in defaults, reset to first default model
+        const defaultModel = AVAILABLE_MODELS[0]?.id;
+        if (defaultModel) {
+          setSelectedModel(defaultModel);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAssistant?.id, activeAssistant?.config?.llm_name]);
+
   return (
     <>
       <AuthDialog open={dialogState === "auth"} onOpenChange={v => setDialogState(v ? "auth" : null)} />
@@ -458,7 +435,7 @@ export default function ChatInput({
                   selectedModel={selectedModel}
                   setShowModelDropdown={(open) => setDropdownState(open ? "model" : null)}
                   showModelDropdown={dropdownState === "model"}
-                  AVAILABLE_MODELS={AVAILABLE_MODELS}
+                  AVAILABLE_MODELS={modelsToShow}
                   handleModelChange={handleModelChange}
                 />
 
@@ -481,7 +458,7 @@ export default function ChatInput({
                            text-white rounded-lg p-1.5 sm:p-2 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center
                            transition-all duration-200 shadow-lg cursor-pointer disabled:cursor-not-allowed"
                 >
-                    <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               </div>
             </div>

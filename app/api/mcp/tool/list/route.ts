@@ -48,33 +48,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get valid tokens before making request
+    try {
+      const tokenValid = await client.getValidTokens();
+      if (!tokenValid) {
+        console.warn('[List Tools] Token invalid and refresh failed for sessionId:', sessionId);
+      } else {
+        // If token was refreshed, update it in session store
+        const oauthProvider = client.oauthProvider;
+        if (oauthProvider) {
+          const tokens = oauthProvider.tokens();
+          if (tokens) {
+            await sessionStore.updateTokens(sessionId, tokens);
+            console.log('[List Tools] Updated refreshed tokens for sessionId:', sessionId);
+          }
+        }
+      }
+    } catch (refreshError) {
+      console.log('[List Tools] Token refresh check failed:', refreshError);
+    }
+
     try {
       // List tools from the MCP server
       console.log('[List Tools] Fetching tools from MCP server...');
       const result = await client.listTools();
       console.log('[List Tools] Found', result.tools.length, 'tools');
 
-      // Also fetch OAuth headers if they exist
-      let headers = null;
-      try {
-        const oauthProvider = (client as unknown as { oauthProvider?: { tokens: () => { access_token?: string } } }).oauthProvider;
-        if (oauthProvider) {
-          const tokens = oauthProvider.tokens();
-          if (tokens && tokens.access_token) {
-            headers = {
-              Authorization: `Bearer ${tokens.access_token}`
-            };
-          }
-        }
-      } catch (headerError) {
-        console.log('[List Tools] Could not fetch OAuth headers:', headerError);
-      }
-
       // Get URL and transport from session store
       const sessionData = await sessionStore['redis'].get(`${sessionStore['KEY_PREFIX']}${sessionId}`);
       let url = null;
       let transport = null;
-      
+
       if (sessionData) {
         try {
           const parsed = JSON.parse(sessionData);
@@ -87,7 +91,6 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         tools: result.tools,
-        headers, // Include headers in response
         url, // Include server URL
         transport, // Include transport type
       });

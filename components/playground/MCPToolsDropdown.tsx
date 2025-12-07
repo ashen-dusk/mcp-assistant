@@ -9,7 +9,7 @@ import Image from "next/image";
 export interface MCPToolSelection {
   selectedServers: string[]; // Array of selected server names
   selectedTools: string[]; // Array of selected tool names
-  mcpConfig: McpConfig; // Config dict for MultiServerMCPClient
+  mcpSessions: string[]; // Array of MCP server sessionIds
 }
 
 export interface MCPToolsDropdownProps {
@@ -35,33 +35,6 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
     setLocalSelection(selection);
   }, [selection]);
 
-  // Build MCP config dict from servers that have selected tools
-  const buildMcpConfig = (selectedToolNames: string[]): McpConfig => {
-    const config: McpConfig = {};
-    const serversWithSelectedTools = new Set<string>();
-
-    // Find which servers have selected tools
-    mcpServers.forEach(server => {
-      const hasSelectedTool = server.tools.some(tool => selectedToolNames.includes(tool.name));
-      if (hasSelectedTool) {
-        serversWithSelectedTools.add(server.serverName);
-      }
-    });
-
-    // Build config for those servers
-    mcpServers
-      .filter(server => serversWithSelectedTools.has(server.serverName))
-      .forEach(server => {
-        config[server.serverName] = {
-          transport: server.transport || 'sse',
-          url: server.url || '',
-          ...(server.headers && { headers: server.headers }),
-        };
-      });
-
-    return config;
-  };
-
   // Get servers that have at least one selected tool
   const getSelectedServers = (selectedToolNames: string[]): string[] => {
     const servers = new Set<string>();
@@ -72,6 +45,18 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
       }
     });
     return Array.from(servers);
+  };
+
+  // Build array of sessionIds for servers with selected tools
+  const buildMcpSessions = (selectedToolNames: string[]): string[] => {
+    const sessionIds: string[] = [];
+    mcpServers.forEach(server => {
+      const hasSelectedTool = server.tools.some(tool => selectedToolNames.includes(tool.name));
+      if (hasSelectedTool) {
+        sessionIds.push(server.sessionId);
+      }
+    });
+    return sessionIds;
   };
 
   // Count stats
@@ -91,7 +76,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
     const newSelection = {
       selectedServers: getSelectedServers(newSelectedTools),
       selectedTools: newSelectedTools,
-      mcpConfig: buildMcpConfig(newSelectedTools),
+      mcpSessions: buildMcpSessions(newSelectedTools),
     };
 
     setLocalSelection(newSelection);
@@ -115,7 +100,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
     const newSelection = {
       selectedServers: getSelectedServers(newSelectedTools),
       selectedTools: newSelectedTools,
-      mcpConfig: buildMcpConfig(newSelectedTools),
+      mcpSessions: buildMcpSessions(newSelectedTools),
     };
 
     setLocalSelection(newSelection);
@@ -129,7 +114,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
     const newSelection = {
       selectedServers: mcpServers.map(s => s.serverName),
       selectedTools: allTools,
-      mcpConfig: buildMcpConfig(allTools),
+      mcpSessions: buildMcpSessions(allTools),
     };
 
     setLocalSelection(newSelection);
@@ -141,7 +126,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
     const newSelection = {
       selectedServers: [],
       selectedTools: [],
-      mcpConfig: {},
+      mcpSessions: [],
     };
 
     setLocalSelection(newSelection);

@@ -14,6 +14,7 @@ export interface SessionData {
   createdAt: number;
   active: boolean;
   tokens?: OAuthTokens;
+  tokenExpiresAt?: number; // Track when the token expires (timestamp in ms)
   clientInformation?: OAuthClientInformationMixed;
   codeVerifier?: string;
 }
@@ -99,6 +100,13 @@ export class SessionStore {
         );
       }
 
+      // Calculate token expiration if tokens are provided
+      let tokenExpiresAt: number | undefined;
+      if (tokens && tokens.expires_in) {
+        const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
+        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+      }
+
       const sessionData: SessionData = {
         sessionId,
         serverUrl: resolvedServerUrl,
@@ -107,6 +115,7 @@ export class SessionStore {
         createdAt: Date.now(),
         active: true,
         tokens,
+        tokenExpiresAt,
         clientInformation,
         codeVerifier,
       };
@@ -198,6 +207,11 @@ export class SessionStore {
     }
     if (sessionData.tokens && 'access_token' in sessionData.tokens) {
       oauthProvider.saveTokens(sessionData.tokens);
+
+      // Restore token expiration if available
+      if (sessionData.tokenExpiresAt && '_tokenExpiresAt' in oauthProvider) {
+        (oauthProvider as any)._tokenExpiresAt = sessionData.tokenExpiresAt;
+      }
     }
     if (sessionData.codeVerifier) {
       oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
@@ -212,6 +226,38 @@ export class SessionStore {
     const sessionData = await this.getSession(sessionId);
     if (!sessionData) return null;
     return this.recreateClient(sessionData);
+  }
+
+  /**
+   * Update tokens for an existing session
+   * Used after token refresh to persist new tokens
+   */
+  async updateTokens(sessionId: string, tokens: OAuthTokens): Promise<void> {
+    try {
+      const sessionData = await this.getSession(sessionId);
+      if (!sessionData) {
+        console.warn(`Cannot update tokens: Session ${sessionId} not found`);
+        return;
+      }
+
+      // Calculate token expiration
+      let tokenExpiresAt: number | undefined;
+      if (tokens.expires_in) {
+        const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
+        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+      }
+
+      // Update session data with new tokens
+      sessionData.tokens = tokens;
+      sessionData.tokenExpiresAt = tokenExpiresAt;
+
+      const sessionKey = this.getSessionKey(sessionId);
+      await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
+      console.log(`✅ Updated tokens for session: ${sessionId}`);
+    } catch (error) {
+      console.error('❌ Failed to update tokens in Redis:', error);
+      throw error;
+    }
   }
 
   async removeSession(sessionId: string): Promise<void> {

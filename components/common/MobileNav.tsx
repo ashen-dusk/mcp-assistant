@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Home, Server, Code, ScrollText } from "lucide-react";
+import { Menu, X, Home, Server, Code, ScrollText, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ export function MobileNav() {
   const navLinks = [
     { href: "/", label: "Home", icon: Home },
     { href: "/mcp", label: "MCP", icon: Server },
+    { href: "/registry", label: "Registry", icon: Package },
     { href: "/playground", label: "Playground", icon: Code },
     { href: "/changelog", label: "Changelog", icon: ScrollText },
   ];

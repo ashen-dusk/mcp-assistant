@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { McpServer } from "@/types/mcp";
+import { McpServer, ParsedRegistryServer } from "@/types/mcp";
 import { RECENT_MCP_SERVERS_QUERY } from "@/lib/graphql";
-import { ServerIcon } from "@/components/mcp-client/ServerIcon";
+import { ServerIcon } from "@/components/common/ServerIcon";
+import { useRegistryRecentServers } from "@/hooks/useRegistryRecentServers";
+import { RegistryServerCard } from "@/components/registry/RegistryServerCard";
 
 // GraphQL query for recent MCP servers - imported from lib/graphql.ts
 const GET_RECENT_SERVERS = gql`${RECENT_MCP_SERVERS_QUERY}`;
@@ -43,7 +45,7 @@ function ServerCard({ server }: { server: McpServer }) {
   };
 
   return (
-    <div className="group flex flex-col gap-3 p-4 rounded-lg border border-border hover:bg-accent/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:scale-105">
+    <div className="group flex flex-col gap-3 p-4 rounded-lg transition-all duration-300">
       {/* Icon and Transport Badge Row */}
       <div className="flex items-center justify-between">
         <ServerIcon
@@ -101,8 +103,11 @@ function ServerCard({ server }: { server: McpServer }) {
 }
 
 export default function RecentMcpServers() {
-  // Use Apollo Client to fetch recent servers directly with GraphQL
-  const { loading, error, data } = useQuery<{
+  // Registry Data
+  const { servers: registryServers, loading: registryLoading } = useRegistryRecentServers(12);
+
+  // Local Data (Apollo)
+  const { loading: localLoading, error: localError, data: localData } = useQuery<{
     mcpServers: {
       edges: Array<{ node: McpServer }>;
     };
@@ -115,65 +120,86 @@ export default function RecentMcpServers() {
   });
 
   // Extract nodes from edges structure
-  const edges = data?.mcpServers?.edges || [];
-  const servers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
-
-  // Handle error state - hide section
-  if (error) {
-    console.error("Failed to load recent servers:", error);
-    return null;
-  }
-
-  // Show only loading skeletons (no heading) while loading
-  if (loading && servers.length === 0) {
-    return (
-      <div className="w-full">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ServerItemSkeleton />
-          <ServerItemSkeleton />
-          <ServerItemSkeleton />
-          <ServerItemSkeleton />
-        </div>
-      </div>
-    );
-  }
-
-  // Hide section if no servers
-  if (servers.length === 0) {
-    return null;
-  }
+  const edges = localData?.mcpServers?.edges || [];
+  const localServers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl md:text-2xl font-bold">Recently Added MCP Servers</h2>
-          <Link
-            href="/mcp"
-            className="hidden md:flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors group"
-          >
-            View All <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Discover the latest MCP servers you can access and test in Playground.
-        </p>
-      </div>
+    <div className="w-full space-y-12">
+      {/* Registry Section */}
+      {(registryLoading || registryServers.length > 0) && (
+        <section>
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl md:text-2xl font-bold">Latest Registry Updates</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Explore the newest additions and updates from the official MCP registry.
+            </p>
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {servers.map((server) => (
-          <ServerCard key={server.id} server={server} />
-        ))}
-      </div>
+          {registryLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <ServerItemSkeleton />
+              <ServerItemSkeleton />
+              <ServerItemSkeleton />
+              <ServerItemSkeleton />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {registryServers.map((server) => (
+                <RegistryServerCard
+                  key={server.id}
+                  server={server}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
-      <div className="md:hidden mt-6 text-center">
-        <Link
-          href="/mcp"
-          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
-        >
-          View All Servers <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
+      {/* Local Section */}
+      {!localError && (localLoading || localServers.length > 0) && (
+        <section>
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl md:text-2xl font-bold">Recently Added to MCP Assistant</h2>
+              <Link
+                href="/mcp"
+                className="hidden md:flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors group"
+              >
+                View All <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Discover the latest MCP servers you can access and test in Playground.
+            </p>
+          </div>
+
+          {localLoading && localServers.length === 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <ServerItemSkeleton />
+              <ServerItemSkeleton />
+              <ServerItemSkeleton />
+              <ServerItemSkeleton />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {localServers.map((server) => (
+                <ServerCard key={server.id} server={server} />
+              ))}
+            </div>
+          )}
+
+          <div className="md:hidden mt-6 text-center">
+            <Link
+              href="/mcp"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              View All Servers <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

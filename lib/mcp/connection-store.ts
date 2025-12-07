@@ -188,9 +188,10 @@ class ConnectionStore {
   /**
    * Validate a connection by checking if its sessionId is still active on the backend
    * Removes the connection from localStorage if invalid
-   * Returns the tools and headers data if valid, null if invalid
+   * Returns the tools data if valid, null if invalid
+   * NOTE: Headers are NOT returned to client for security - they're fetched server-side
    */
-  async validateConnection(serverName: string): Promise<{ tools: ToolInfo[], headers: Record<string, string> | null } | null> {
+  async validateConnection(serverName: string): Promise<{ tools: ToolInfo[] } | null> {
     if (typeof window === 'undefined') return null;
 
     const connection = this.get(serverName);
@@ -208,11 +209,10 @@ class ConnectionStore {
         return null;
       }
 
-      // Parse and return the data for reuse
+      // Parse and return the data for reuse (no headers for security)
       const data = await response.json();
       return {
-        tools: data.tools || [],
-        headers: data.headers || null
+        tools: data.tools || []
       };
     } catch (error) {
       console.error('[ConnectionStore] Failed to validate session:', error);
@@ -224,11 +224,12 @@ class ConnectionStore {
 
   /**
    * Get all valid connections (validates and cleans up expired ones)
-   * Returns a map of valid server names to their tools/headers data
+   * Returns a map of valid server names to their tools data
+   * NOTE: Headers are NOT included for security - they're fetched server-side
    */
-  async getValidConnections(): Promise<Map<string, { tools: ToolInfo[], headers: Record<string, string> | null }>> {
+  async getValidConnections(): Promise<Map<string, { tools: ToolInfo[] }>> {
     const connections = this.getAll();
-    const validServersData = new Map<string, { tools: ToolInfo[], headers: Record<string, string> | null }>();
+    const validServersData = new Map<string, { tools: ToolInfo[] }>();
 
     // Validate all connections in parallel
     const validationPromises = Object.keys(connections).map(async (serverName) => {

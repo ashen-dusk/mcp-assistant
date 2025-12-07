@@ -17,7 +17,7 @@ import {
   Clock,
 } from "lucide-react";
 import { McpServer } from "@/types/mcp";
-import { ServerIcon } from "./ServerIcon";
+import { ServerIcon } from "@/components/common/ServerIcon";
 import ServerManagement from "./ServerManagement";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

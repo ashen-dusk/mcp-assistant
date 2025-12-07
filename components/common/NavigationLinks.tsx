@@ -1,5 +1,5 @@
 "use client";
-import { Home, Server, Code, ScrollText } from "lucide-react";
+import { Home, Server, Code, ScrollText, Package } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -22,6 +22,11 @@ export function NavigationLinks() {
       <Link href="/mcp" className={navLinkClass(pathname === "/mcp")}>
         <Server className="h-4 w-4" />
         MCP
+        <span className={underlineClass} />
+      </Link>
+      <Link href="/registry" className={navLinkClass(pathname === "/registry")}>
+        <Package className="h-4 w-4" />
+        Registry
         <span className={underlineClass} />
       </Link>
       <Link href="/playground" className={navLinkClass(pathname === "/playground")}>

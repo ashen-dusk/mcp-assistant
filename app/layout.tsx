@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   title: "MCP Assistant",
   description: "Web-based MCP (Model Context Protocol) client for managing servers and exploring tools",
   icons: {
-    icon: "/images/favicon.svg",
+    icon: "/images/favicon.ico",
   },
   verification: {
     google: "Not4GrBnowoe9oFiAJ1p11C-olKqFaDIuPV-19X8tBo",
@@ -46,7 +46,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <CopilotKit
-                publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
+                // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
                 agent="mcpAssistant"
                 runtimeUrl="/api/copilotkit"
                 showDevConsole={false}

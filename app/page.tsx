@@ -6,7 +6,8 @@ import {
   Play,
   ArrowRight,
   MessageSquare,
-  Plug
+  Plug,
+  Upload
 } from "lucide-react";
 import RecentMcpServers from "@/components/home/RecentMcpServers";
 import Categories from "@/components/home/Categories";
@@ -237,9 +238,9 @@ export default function Home() {
       </div>
 
       {/* Categories Section */}
-      <div className="container mx-auto px-6 py-16">
+      {/* <div className="container mx-auto px-6 py-16">
         <Categories />
-      </div>
+      </div> */}
 
       {/* Architecture Visualization Section */}
       <motion.div
@@ -261,7 +262,7 @@ export default function Home() {
       </motion.div>
 
       {/* Feature Highlights Section */}
-      <div id="features" className="relative pb-28 bg-gradient-to-b from-background via-muted/20 to-background overflow-hidden">
+      <div id="features" className="relative pb-28 mt-4 overflow-hidden">
         {/* Gradient blobs */}
         <div className="absolute inset-0 -z-10">
           <motion.div
