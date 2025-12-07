@@ -9,7 +9,7 @@ import type { ParsedRegistryServer } from "@/types/mcp";
 
 interface RegistryServerCardProps {
   server: ParsedRegistryServer;
-  onViewDetails: (server: ParsedRegistryServer) => void;
+  onViewDetails?: (server: ParsedRegistryServer) => void;
 }
 
 export function RegistryServerCard({
@@ -114,15 +114,17 @@ export function RegistryServerCard({
             )}
           </div>
 
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onViewDetails(server)}
-            className="h-8 px-3 text-xs group/btn hover:text-primary transition-colors"
-          >
-            <span>View Details</span>
-            <ArrowRight className="h-3 w-3 ml-1 group-hover/btn:translate-x-0.5 transition-transform" />
-          </Button>
+          {onViewDetails && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onViewDetails(server)}
+              className="h-8 px-3 text-xs group/btn hover:text-primary transition-colors"
+            >
+              <span>View Details</span>
+              <ArrowRight className="h-3 w-3 ml-1 group-hover/btn:translate-x-0.5 transition-transform" />
+            </Button>
+          )}
         </div>
       </div>
     </Card>
