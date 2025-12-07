@@ -113,3 +113,89 @@ export interface Tool {
   name: string;
   description: string;
 }
+
+// MCP Registry API Types (actual API schema)
+export type RegistryServerPackage = {
+  registryType?: string;
+  identifier?: string;
+  transport?: {
+    type: "stdio" | "sse" | "streamable-http";
+  };
+  environmentVariables?: {
+    name: string;
+    description?: string;
+    format?: string;
+    isSecret?: boolean;
+  }[];
+};
+
+export type RegistryServerRemote = {
+  type: "streamable-http" | "sse";
+  url: string;
+};
+
+export type RegistryServerRepository = {
+  url?: string;
+  source?: string;
+};
+
+export type RegistryServerIcon = {
+  src: string;
+  mimeType?: "image/png" | "image/jpeg" | "image/jpg" | "image/svg+xml" | "image/webp";
+  sizes?: string[];
+  theme?: "light" | "dark";
+};
+
+export type RegistryServerData = {
+  $schema?: string;
+  name: string;
+  description?: string;
+  title?: string;
+  icons?: RegistryServerIcon[];
+  repository?: RegistryServerRepository;
+  version: string;
+  packages?: RegistryServerPackage[];
+  remotes?: RegistryServerRemote[];
+  websiteUrl?: string;
+};
+
+export type RegistryServerMeta = {
+  "io.modelcontextprotocol.registry/official": {
+    status: string;
+    publishedAt: string;
+    updatedAt: string;
+    isLatest: boolean;
+  };
+};
+
+export type RegistryServerEntry = {
+  server: RegistryServerData;
+  _meta: RegistryServerMeta;
+};
+
+export type RegistryListResponse = {
+  servers: RegistryServerEntry[];
+  metadata: {
+    nextCursor?: string;
+    count: number;
+  };
+};
+
+// Parsed/simplified types for UI
+export type ParsedRegistryServer = {
+  id: string;
+  name: string;
+  vendor: string;
+  title: string | null;
+  description: string | null;
+  version: string;
+  iconUrl: string | null;
+  repositoryUrl: string | null;
+  websiteUrl: string | null;
+  hasRemote: boolean;
+  hasPackage: boolean;
+  remoteUrl: string | null;
+  publishedAt: string;
+  updatedAt: string;
+  isLatest: boolean;
+};

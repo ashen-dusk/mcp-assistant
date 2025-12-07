@@ -127,8 +127,8 @@ export function ServerIcon({
   if (showFallback) {
     return (
       <div
-        className={`${getColorFromName(serverName)} ${className} flex items-center justify-center text-white font-semibold rounded-lg`}
-        style={{ width: size, height: size, fontSize: size * 0.5 }}
+        className={`${getColorFromName(serverName)} ${className} flex items-center justify-center text-white font-semibold border-0`}
+        style={{ width: size, height: size, fontSize: size * 0.5, borderRadius: className.includes('rounded') ? undefined : '0.5rem' }}
       >
         {firstLetter}
       </div>

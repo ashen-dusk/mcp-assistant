@@ -10,7 +10,7 @@ import { ArrowRight, Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { McpServer } from "@/types/mcp";
 import { RECENT_MCP_SERVERS_QUERY } from "@/lib/graphql";
-import { ServerIcon } from "@/components/mcp-client/ServerIcon";
+import { ServerIcon } from "@/components/common/ServerIcon";
 
 // GraphQL query for recent MCP servers - imported from lib/graphql.ts
 const GET_RECENT_SERVERS = gql`${RECENT_MCP_SERVERS_QUERY}`;

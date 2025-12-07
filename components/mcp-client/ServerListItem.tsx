@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Shield, Edit, Trash2 } from "lucide-react";
 import { McpServer } from "@/types/mcp";
-import { ServerIcon } from "./ServerIcon";
+import { ServerIcon } from "@/components/common/ServerIcon";
 import { Button } from "@/components/ui/button";
 
 interface ServerListItemProps {
