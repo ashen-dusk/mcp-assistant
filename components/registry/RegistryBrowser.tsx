@@ -1,66 +1,91 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, AlertCircle, Loader2, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, AlertCircle, Package, ChevronLeft, ChevronRight, X, Loader2, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRegistryServers } from "@/hooks/useRegistryServers";
 import { RegistryServerCard } from "./RegistryServerCard";
-import { RegistryServerDetailsModal } from "./RegistryServerDetailsModal";
+import { ServerDetail } from "./ServerDetail";
 import type { ParsedRegistryServer } from "@/types/mcp";
+import { useState, useCallback, useEffect } from "react";
 
 export function RegistryBrowser() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedServer, setSelectedServer] =
-    useState<ParsedRegistryServer | null>(null);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<'search' | 'next' | 'prev' | null>(null);
+  const {
+    servers,
+    loading,
+    error,
+    hasNextPage,
+    hasPreviousPage,
+    goToNextPage,
+    goToPreviousPage,
+    searchQuery,
+    setSearchQuery,
+    debouncedSearch,
+  } = useRegistryServers();
 
-  const { servers, loading, error, hasNextPage, hasPreviousPage, goToNextPage, goToPreviousPage, refetch } =
-    useRegistryServers(debouncedSearch);
-
-  const handleSearch = useCallback(() => {
-    setLoadingAction('search');
-    setDebouncedSearch(searchQuery);
-  }, [searchQuery]);
-
-  const handleNextPage = useCallback(() => {
-    setLoadingAction('next');
-    goToNextPage();
-  }, [goToNextPage]);
-
-  const handlePreviousPage = useCallback(() => {
-    setLoadingAction('prev');
-    goToPreviousPage();
-  }, [goToPreviousPage]);
-
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
+  const [paginationAction, setPaginationAction] = useState<'prev' | 'next' | null>(null);
+  const [selectedServer, setSelectedServer] = useState<ParsedRegistryServer | null>(null);
 
   const handleClearSearch = () => {
     setSearchQuery("");
-    setDebouncedSearch("");
   };
 
-  // Clear loading action when loading completes
-  useEffect(() => {
-    if (!loading) {
-      setLoadingAction(null);
-    }
-  }, [loading]);
+  const handlePreviousPage = useCallback(() => {
+    setPaginationAction('prev');
+    goToPreviousPage();
+  }, [goToPreviousPage]);
+
+  const handleNextPage = useCallback(() => {
+    setPaginationAction('next');
+    goToNextPage();
+  }, [goToNextPage]);
 
   const handleViewDetails = (server: ParsedRegistryServer) => {
     setSelectedServer(server);
-    setIsDetailsModalOpen(true);
   };
 
+  const handleBackToRegistry = () => {
+    setSelectedServer(null);
+  };
+
+  // Clear pagination action when loading completes
+  useEffect(() => {
+    if (!loading) {
+      setPaginationAction(null);
+    }
+  }, [loading]);
+
+  // If a server is selected, show detail view
+  if (selectedServer) {
+    return (
+      <div className="min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-sm mb-8">
+            <button
+              onClick={handleBackToRegistry}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Package className="h-4 w-4" />
+              <span>Registry</span>
+            </button>
+            <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium text-foreground">
+              {selectedServer.title || selectedServer.name}
+            </span>
+          </div>
+
+          {/* Server Detail */}
+          <ServerDetail server={selectedServer} />
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise, show the registry grid
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -109,31 +134,22 @@ export function RegistryBrowser() {
                   placeholder="Search servers by name, description, or vendor..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleSearchKeyPress}
-                  className="pl-12 pr-24 h-14 text-base bg-background/80 backdrop-blur-md border-border/50 focus:border-primary/50 shadow-lg focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="pl-12 pr-12 h-14 text-base bg-background/80 backdrop-blur-md border-border/50 focus:border-primary/50 shadow-lg focus:ring-2 focus:ring-primary/20 transition-all"
                 />
                 {searchQuery && (
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={handleClearSearch}
-                    className="absolute right-20 top-1/2 transform -translate-y-1/2 h-8 z-10"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 z-10 hover:bg-muted"
                   >
-                    Clear
+                    <X className="h-4 w-4" />
                   </Button>
                 )}
-                <Button
-                  onClick={handleSearch}
-                  disabled={loading}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 z-10 cursor-pointer"
-                >
-                  {loading && loadingAction === 'search' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Search"
-                  )}
-                </Button>
               </div>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Results update automatically as you type
+              </p>
             </motion.div>
 
             {/* Stats */}
@@ -165,9 +181,9 @@ export function RegistryBrowser() {
                 size="sm"
                 onClick={handlePreviousPage}
                 disabled={!hasPreviousPage || loading}
-                className="gap-2 cursor-pointer"
+                className="gap-2"
               >
-                {loading && loadingAction === 'prev' ? (
+                {loading && paginationAction === 'prev' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <ChevronLeft className="h-4 w-4" />
@@ -179,10 +195,10 @@ export function RegistryBrowser() {
                 size="sm"
                 onClick={handleNextPage}
                 disabled={!hasNextPage || loading}
-                className="gap-2 cursor-pointer"
+                className="gap-2"
               >
                 Next
-                {loading && loadingAction === 'next' ? (
+                {loading && paginationAction === 'next' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <ChevronRight className="h-4 w-4" />
@@ -263,16 +279,6 @@ export function RegistryBrowser() {
           </div>
         )}
       </div>
-
-      {/* Server Details Modal */}
-      <RegistryServerDetailsModal
-        server={selectedServer}
-        isOpen={isDetailsModalOpen}
-        onClose={() => {
-          setIsDetailsModalOpen(false);
-          setSelectedServer(null);
-        }}
-      />
     </div>
   );
 }
