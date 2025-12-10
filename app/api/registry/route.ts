@@ -87,7 +87,8 @@ export async function GET(request: NextRequest) {
 
       return {
         id: `${server.name}:${server.version}`, // Unique ID combining name and version
-        name: shortName,
+        name: server.name,
+        shortName: shortName,
         vendor,
         title: server.title || null,
         description: server.description || null,

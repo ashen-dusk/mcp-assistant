@@ -35,7 +35,7 @@ export function ServerDetail({ server }: ServerDetailProps) {
   const [toolTesterOpen, setToolTesterOpen] = useState(false);
   const [selectedToolName, setSelectedToolName] = useState<string | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
-  const displayName = server.title || server.name;
+  const displayName = server.title || server.shortName;
 
   const {
     connect,
@@ -109,7 +109,7 @@ export function ServerDetail({ server }: ServerDetailProps) {
           <div className="flex items-start gap-6 flex-1 min-w-0">
             <div className="shrink-0">
               <ServerIcon
-                serverName={server.name}
+                serverName={server.shortName}
                 serverUrl={server.remoteUrl}
                 size={56}
                 className="rounded-xl shrink-0"
