@@ -130,7 +130,8 @@ export default function ToolExecutionPanel({
       if (connectionData) {
         try {
           const connections = JSON.parse(connectionData);
-          const serverConnection = connections[server.name];
+          // Use server.id for connection lookup (handles both mcp_ IDs and registry IDs)
+          const serverConnection = connections[server.id];
           sessionId = serverConnection?.sessionId || null;
         } catch (e) {
           console.error('Failed to parse connection data:', e);

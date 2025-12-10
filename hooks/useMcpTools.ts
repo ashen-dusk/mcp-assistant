@@ -51,14 +51,14 @@ export function useMcpTools(): UseMcpToolsReturn {
       const connections = connectionStore.getAll();
 
       // Build servers with data from validation (no additional API calls needed)
-      const serversWithData = Array.from(validServersData.entries()).map(([serverName, data]) => {
-        const connection = connections[serverName];
+      const serversWithData = Array.from(validServersData.entries()).map(([serverId, data]) => {
+        const connection = connections[serverId];
         if (!connection || connection.connectionStatus !== 'CONNECTED') {
           return null;
         }
 
         return {
-          serverName,
+          serverName: connection.serverName, // Use the readable server name, not the ID
           sessionId: connection.sessionId,
           connectionStatus: connection.connectionStatus,
           tools: data.tools, // Tools from validation call
