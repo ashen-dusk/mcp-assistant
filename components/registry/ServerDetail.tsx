@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,15 +12,18 @@ import {
   Copy,
   Check,
   Play,
-  Square,
+  Pause,
   Loader2,
-  Wrench,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ServerIcon } from "@/components/common/ServerIcon";
-import type { ParsedRegistryServer, ToolInfo } from "@/types/mcp";
+import ToolsExplorer from "@/components/mcp-client/ToolsExplorer";
+import ToolExecutionPanel from "@/components/mcp-client/ToolExecutionPanel";
+import type { ParsedRegistryServer, ToolInfo, McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
+import { useConnectionPersistence } from "@/hooks/useConnectionPersistence";
 import { connectionStore } from "@/lib/mcp/connection-store";
 
 interface ServerDetailProps {
@@ -29,23 +32,40 @@ interface ServerDetailProps {
 
 export function ServerDetail({ server }: ServerDetailProps) {
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [tools, setTools] = useState<ToolInfo[]>([]);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-
+  const [toolTesterOpen, setToolTesterOpen] = useState(false);
+  const [selectedToolName, setSelectedToolName] = useState<string | null>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const displayName = server.title || server.name;
 
-  // Hydrate connection state from store
-  useState(() => {
-    const stored = connectionStore.get(server.name);
-    if (stored && stored.connectionStatus === 'CONNECTED' && stored.sessionId) {
-      setSessionId(stored.sessionId);
-      setIsConnected(true);
-      setTools(stored.tools || []);
+  const {
+    connect,
+    disconnect,
+    isConnecting,
+    connectionError,
+  } = useConnectionPersistence();
+
+  // Subscribe to connection store for reactive updates
+  const storeSnapshot = useSyncExternalStore(
+    (callback) => connectionStore.subscribe(callback),
+    () => JSON.stringify(connectionStore.getAll()),
+    () => JSON.stringify({})
+  );
+
+  const connections = JSON.parse(storeSnapshot);
+  const connection = connections[server.id];
+  const isConnected = connection?.connectionStatus === 'CONNECTED';
+  const tools = connection?.tools || [];
+
+  const handleConnect = () => connect(server);
+
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await disconnect(server);
+    } finally {
+      setIsDisconnecting(false);
     }
-  });
+  };
 
   const handleCopyUrl = () => {
     if (server?.remoteUrl) {
@@ -56,110 +76,35 @@ export function ServerDetail({ server }: ServerDetailProps) {
     }
   };
 
-  const handleConnect = async () => {
-    if (!server?.remoteUrl) {
-      toast.error("No remote URL available for this server");
-      return;
-    }
-
-    if (!server.transportType) {
-      toast.error("Transport type not available for this server");
-      return;
-    }
-
-    setIsConnecting(true);
-    setConnectionError(null);
-
-    try {
-      const response = await fetch("/api/mcp/auth/connect", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          serverUrl: server.remoteUrl,
-          callbackUrl: `${window.location.origin}/api/mcp/auth/callback`,
-          serverName: server.title || server.name,
-          transportType: server.transportType,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.requiresAuth && result.authUrl) {
-        toast.success("Redirecting to OAuth authorization...");
-        window.location.href = result.authUrl;
-        return;
-      }
-
-      if (result.success && result.sessionId) {
-        setSessionId(result.sessionId);
-        setIsConnected(true);
-
-        let fetchedTools: ToolInfo[] = [];
-        const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${result.sessionId}`);
-        if (toolsResponse.ok) {
-          const toolsData = await toolsResponse.json();
-          fetchedTools = toolsData.tools || [];
-          setTools(fetchedTools);
-        }
-
-        toast.success("Connected successfully!");
-
-        // Persist connection
-        connectionStore.set(server.id, {
-          sessionId: result.sessionId,
-          connectionStatus: 'CONNECTED',
-          tools: fetchedTools,
-          transport: server.transportType,
-          url: server.remoteUrl,
-        });
-      } else {
-        throw new Error(result.error || "Failed to connect");
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Failed to connect";
-      setConnectionError(errorMsg);
-      toast.error(errorMsg);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!sessionId) return;
-
-    try {
-      const response = await fetch("/api/mcp/auth/disconnect", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setSessionId(null);
-        setIsConnected(false);
-        setTools([]);
-        toast.success("Disconnected successfully");
-        connectionStore.remove(server.id);
-      } else {
-        throw new Error(result.error || "Failed to disconnect");
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to disconnect");
-    }
+  // Convert ParsedRegistryServer to McpServer format for ToolsExplorer
+  const mcpServer: McpServer = {
+    id: server.id,
+    name: server.name,
+    description: server.description,
+    transport: server.transportType || 'sse',
+    url: server.remoteUrl,
+    requiresOauth2: false,
+    connectionStatus: isConnected ? 'CONNECTED' : 'DISCONNECTED',
+    tools: tools,
+    updated_at: server.updatedAt,
+    createdAt: server.publishedAt,
   };
 
   return (
-    <div className="space-y-12">
+    <div className="flex gap-6">
+      {/* Main Content - Hidden when tool tester is open */}
+      <AnimatePresence mode="wait">
+        {!toolTesterOpen && (
+          <motion.div
+            key="detail"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1"
+          >
       {/* Header Section */}
-      <div className="pb-8 border-b">
+      <div className="border-b">
         <div className="flex items-start justify-between gap-8 flex-wrap mb-6">
           <div className="flex items-start gap-6 flex-1 min-w-0">
             <div className="shrink-0">
@@ -227,12 +172,22 @@ export function ServerDetail({ server }: ServerDetailProps) {
               ) : (
                 <Button
                   onClick={handleDisconnect}
-                  variant="destructive"
+                  disabled={isDisconnecting}
+                  variant="outline"
                   size="lg"
                   className="gap-2 min-w-[140px] cursor-pointer"
                 >
-                  <Square className="h-4 w-4 fill-current" />
-                  Disconnect
+                  {isDisconnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Disconnecting...
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="h-4 w-4" />
+                      Disconnect
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -249,27 +204,18 @@ export function ServerDetail({ server }: ServerDetailProps) {
           </Alert>
         )}
 
-        {isConnected && tools.length > 0 && (
+        {/* Tools Explorer - Only show when connected */}
+        {isConnected && (
           <div className="pb-10 border-b">
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2.5">
-              <Wrench className="h-5 w-5 text-primary" />
-              Available Tools ({tools.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tools.map((tool, index) => (
-                <div
-                  key={index}
-                  className="p-4 bg-accent/30 hover:bg-accent/50 rounded-lg transition-colors"
-                >
-                  <h3 className="font-semibold text-sm mb-1.5">{tool.name}</h3>
-                  {tool.description && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {tool.description}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
+            <ToolsExplorer
+              server={mcpServer}
+              onOpenToolTester={(toolName) => {
+                setToolTesterOpen(true);
+                if (toolName) {
+                  setSelectedToolName(toolName);
+                }
+              }}
+            />
           </div>
         )}
 
@@ -403,6 +349,33 @@ export function ServerDetail({ server }: ServerDetailProps) {
           </div>
         )}
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Tool Execution Panel - Slides in from right */}
+      <AnimatePresence>
+        {toolTesterOpen && isConnected && (
+          <motion.div
+            key="tool-tester"
+            initial={{ opacity: 0, x: 320 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 320 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1"
+          >
+            <ToolExecutionPanel
+              server={mcpServer}
+              tools={tools}
+              onClose={() => {
+                setToolTesterOpen(false);
+                setSelectedToolName(null);
+              }}
+              initialToolName={selectedToolName}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

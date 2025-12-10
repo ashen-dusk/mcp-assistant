@@ -11,8 +11,12 @@ import { RegistryServerCard } from "./RegistryServerCard";
 import { ServerDetail } from "./ServerDetail";
 import type { ParsedRegistryServer } from "@/types/mcp";
 import { useState, useCallback, useEffect } from "react";
+import { useOAuthCallback } from "@/hooks/useOAuthCallback";
+import { connectionStore } from "@/lib/mcp/connection-store";
+import { useConnectionContext } from "@/components/providers/ConnectionProvider";
 
 export function RegistryBrowser() {
+  const { activeCount } = useConnectionContext();
   const {
     servers,
     loading,
@@ -24,10 +28,15 @@ export function RegistryBrowser() {
     searchQuery,
     setSearchQuery,
     debouncedSearch,
+    refetch,
   } = useRegistryServers();
 
   const [paginationAction, setPaginationAction] = useState<'prev' | 'next' | null>(null);
   const [selectedServer, setSelectedServer] = useState<ParsedRegistryServer | null>(null);
+
+  // Handle OAuth callback redirect using shared hook
+  // Store will trigger reactive updates automatically, no refetch needed
+  useOAuthCallback();
 
   const handleClearSearch = () => {
     setSearchQuery("");
@@ -90,7 +99,7 @@ export function RegistryBrowser() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <div className="border-b border-border/50 bg-gradient-to-br from-background via-primary/5 to-background">
-        <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -147,20 +156,25 @@ export function RegistryBrowser() {
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Results update automatically as you type
-              </p>
             </motion.div>
 
             {/* Stats */}
-            {!loading && !error && debouncedSearch && (
-              <div className="flex items-center gap-6 text-sm text-muted-foreground pt-4">
+            <div className="flex items-center gap-6 text-sm text-muted-foreground pt-4">
+              {!loading && !error && debouncedSearch && (
                 <div className="flex items-center gap-2">
                   <Search className="h-3 w-3" />
                   <span>Search: "{debouncedSearch}"</span>
                 </div>
-              </div>
-            )}
+              )}
+              {activeCount > 0 && (
+                <div className="flex items-center gap-1.5 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                    {activeCount} active connection{activeCount !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+            </div>
           </motion.div>
         </div>
       </div>
@@ -169,9 +183,19 @@ export function RegistryBrowser() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-foreground">
-            {debouncedSearch ? "Search Results" : "All Servers"}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-foreground">
+              {debouncedSearch ? "Search Results" : "All Servers"}
+            </h2>
+            {activeCount > 0 && (
+              <div className="flex items-center gap-1.5 bg-green-100 dark:bg-green-900/30 px-2.5 py-1 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                  {activeCount} active
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Pagination Controls */}
           {(hasNextPage || hasPreviousPage) && (

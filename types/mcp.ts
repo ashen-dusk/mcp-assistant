@@ -199,4 +199,6 @@ export type ParsedRegistryServer = {
   publishedAt: string;
   updatedAt: string;
   isLatest: boolean;
+  connectionStatus?: string;
+  tools?: ToolInfo[];
 };

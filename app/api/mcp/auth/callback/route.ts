@@ -35,10 +35,10 @@ async function handleCallback(request: NextRequest) {
   const state = searchParams.get('state');
 
   // Parse state to extract all data (parse once, use everywhere)
-  let sessionId: string;
-  let serverId: string | undefined;
-  let serverName: string | undefined;
-  let serverUrl: string | undefined;
+  let sessionId: string | undefined = undefined;
+  let serverId: string | undefined = undefined;
+  let serverName: string | undefined = undefined;
+  let serverUrl: string | undefined = undefined;
   let sourceUrl: string = '/mcp'; // Default fallback
 
   if (state) {
