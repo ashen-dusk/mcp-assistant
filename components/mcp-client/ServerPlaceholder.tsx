@@ -37,28 +37,28 @@ export function ServerPlaceholder({ type, tab }: ServerPlaceholderProps) {
           className="max-w-3xl w-full"
         >
           {/* Hero Section */}
-          <motion.div variants={itemVariants} className="text-center mb-12">
-            <div className="relative h-24 w-24 mx-auto mb-6">
+          <motion.div variants={itemVariants} className="text-center mb-8">
+            <div className="relative h-16 w-16 mx-auto mb-4">
               <div className="absolute inset-0 bg-blue-500/20 dark:bg-blue-400/10 rounded-full blur-2xl animate-pulse" />
               <Image
                 src="/technologies/mcp-light.webp"
                 alt="MCP"
-                width={96}
-                height={96}
+                width={64}
+                height={64}
                 className="dark:hidden relative z-10 drop-shadow-sm"
               />
               <Image
                 src="/technologies/mcp.webp"
                 alt="MCP"
-                width={96}
-                height={96}
+                width={64}
+                height={64}
                 className="hidden dark:block relative z-10 drop-shadow-sm"
               />
             </div>
-            <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 mb-3 tracking-tight">
+            <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 mb-3 tracking-tight">
               Welcome to MCP Assistant
             </h2>
-            <p className="text-muted-foreground text-lg max-w-md mx-auto leading-relaxed">
+            <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
               Select a server from the sidebar to explore its capabilities, inspect tools, and monitor connections.
             </p>
           </motion.div>
