@@ -185,6 +185,7 @@ export type RegistryListResponse = {
 export type ParsedRegistryServer = {
   id: string;
   name: string;
+  shortName: string;
   vendor: string;
   title: string | null;
   description: string | null;

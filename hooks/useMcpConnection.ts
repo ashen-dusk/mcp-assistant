@@ -3,14 +3,11 @@ import { toast } from "react-hot-toast";
 import { connectionStore } from '@/lib/mcp/connection-store';
 import { McpServer, ParsedRegistryServer, ToolInfo } from '@/types/mcp';
 
-interface UseConnectionPersistenceProps {
+interface UseMcpConnectionProps {
   servers?: McpServer[] | null;
   setServers?: (servers: McpServer[] | null | ((prev: McpServer[] | null) => McpServer[] | null)) => void;
 }
 
-/**
- * Flexible server type that works with both McpServer and ParsedRegistryServer
- */
 type ConnectableServer = {
   id: string;
   name: string;
@@ -21,43 +18,37 @@ type ConnectableServer = {
   title?: string | null;
 };
 
-/**
- * Hook to manage MCP connection state persistence using localStorage
- *
- * This hook handles:
- * 1. Reactive connection state from ConnectionStore
- * 2. Connect/Disconnect actions with API integration
- * 3. Merging stored connection data with fetched server lists
- */
-export function useConnectionPersistence({ servers, setServers }: UseConnectionPersistenceProps = {}) {
+const UNSUPPORTED_TRANSPORTS = ['stdio', 'websocket'];
+
+function extractServerUrl(server: ConnectableServer): string | null {
+  return server.remoteUrl || server.url || null;
+}
+
+function extractTransport(server: ConnectableServer): string | null {
+  return server.transportType || server.transport || null;
+}
+
+export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps = {}) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Subscribe to store updates for reactivity
   const storeSnapshot = useSyncExternalStore(
     (callback) => connectionStore.subscribe(callback),
     () => JSON.stringify(connectionStore.getAll()),
     () => JSON.stringify({})
   );
 
-  /**
-   * Get connection info for a specific server by ID
-   */
   const getConnection = useCallback((serverId: string) => {
     const connections = JSON.parse(storeSnapshot);
     return connections[serverId] || null;
   }, [storeSnapshot]);
 
-  /**
-   * Merge stored connection state with a list of servers
-   */
   const mergeWithStoredState = useCallback((serverList: ParsedRegistryServer[]): ParsedRegistryServer[] => {
     const storedConnections = JSON.parse(storeSnapshot);
 
     return serverList.map((server) => {
       const stored = storedConnections[server.id];
-      // Only override if we have a valid connection record
-      if (stored && stored.connectionStatus === 'CONNECTED') {
+      if (stored?.connectionStatus === 'CONNECTED') {
         return {
           ...server,
           connectionStatus: stored.connectionStatus,
@@ -71,28 +62,21 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
     });
   }, [storeSnapshot]);
 
-  /**
-   * Connect to an MCP server
-   * Works with both McpServer and ParsedRegistryServer types
-   */
   const connect = useCallback(async (server: ConnectableServer) => {
-    // Extract URL (supports both McpServer.url and ParsedRegistryServer.remoteUrl)
-    const serverUrl = server.remoteUrl || server.url;
+    const serverUrl = extractServerUrl(server);
     if (!serverUrl) {
       toast.error("No URL available for this server");
       return;
     }
 
-    // Extract transport type (supports both McpServer.transport and ParsedRegistryServer.transportType)
-    const transport = server.transportType || server.transport;
+    const transport = extractTransport(server);
     if (!transport) {
       toast.error("Transport type not available for this server");
       return;
     }
 
-    // Validate transport type for HTTP connection
-    if (transport === 'stdio' || transport === 'websocket') {
-      toast.error(`Transport type '${transport}' must use Django GraphQL connection. HTTP connection only supports SSE/HTTP streaming endpoints.`);
+    if (UNSUPPORTED_TRANSPORTS.includes(transport)) {
+      toast.error(`Transport type '${transport}' is not supported`);
       return;
     }
 
@@ -100,37 +84,18 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
     setConnectionError(null);
 
     try {
-      // Normalize URL based on transport type
-      let normalizedUrl = serverUrl;
-      if (transport === 'sse') {
-        // SSE transport requires /sse endpoint
-        if (!normalizedUrl.endsWith('/sse')) {
-          normalizedUrl = normalizedUrl + '/sse';
-        }
-      } else if (transport === 'streamable_http') {
-        // StreamableHTTP uses base URL - remove /sse or /message suffix
-        if (normalizedUrl.endsWith('/sse')) {
-          normalizedUrl = normalizedUrl.slice(0, -4);
-        } else if (normalizedUrl.endsWith('/message')) {
-          normalizedUrl = normalizedUrl.slice(0, -8);
-        }
-      }
-
-      // Store the current page path to return to after OAuth
       const sourceUrl = window.location.pathname;
 
       const response = await fetch("/api/mcp/auth/connect", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serverUrl: normalizedUrl,
+          serverUrl: serverUrl,
           callbackUrl: `${window.location.origin}/api/mcp/auth/callback`,
           serverId: server.id,
           serverName: server.title || server.name,
           transportType: transport,
-          sourceUrl, // Pass the current page path
+          sourceUrl,
         }),
       });
 
@@ -152,7 +117,6 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
 
         toast.success("Connected successfully!");
 
-        // Persist connection using server ID
         connectionStore.set(server.id, {
           sessionId: result.sessionId,
           serverName: server.name,
@@ -161,13 +125,6 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
           transport: transport,
           url: serverUrl,
         });
-
-        // Optionally update local state if setServers is provided
-        if (setServers) {
-           // This part is less critical now that we have reactive merging,
-           // but kept for compatibility with useMcpServers legacy usage if needed.
-        }
-
       } else {
         throw new Error(result.error || "Failed to connect");
       }
@@ -180,26 +137,18 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
     }
   }, [setServers]);
 
-  /**
-   * Disconnect from an MCP server
-   * Works with both McpServer and ParsedRegistryServer types
-   */
   const disconnect = useCallback(async (server: ConnectableServer) => {
     const connection = getConnection(server.id);
     if (!connection?.sessionId) {
-      toast.error("Connection information not found. Server may already be disconnected.");
+      toast.error("Connection information not found");
       return;
     }
 
     try {
       const response = await fetch("/api/mcp/auth/disconnect", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: connection.sessionId,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: connection.sessionId }),
       });
 
       const result = await response.json();

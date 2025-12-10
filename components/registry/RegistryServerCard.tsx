@@ -18,7 +18,7 @@ export function RegistryServerCard({
   server,
   onViewDetails,
 }: RegistryServerCardProps) {
-  const displayName = server.title || server.name;
+  const displayName = server.title || server.shortName;
 
   // Subscribe to connection store for reactive connection status
   const storeSnapshot = useSyncExternalStore(

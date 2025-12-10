@@ -23,7 +23,7 @@ import ToolsExplorer from "@/components/mcp-client/ToolsExplorer";
 import ToolExecutionPanel from "@/components/mcp-client/ToolExecutionPanel";
 import type { ParsedRegistryServer, ToolInfo, McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
-import { useConnectionPersistence } from "@/hooks/useConnectionPersistence";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 import { connectionStore } from "@/lib/mcp/connection-store";
 
 interface ServerDetailProps {
@@ -35,14 +35,14 @@ export function ServerDetail({ server }: ServerDetailProps) {
   const [toolTesterOpen, setToolTesterOpen] = useState(false);
   const [selectedToolName, setSelectedToolName] = useState<string | null>(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
-  const displayName = server.title || server.name;
+  const displayName = server.title || server.shortName;
 
   const {
     connect,
     disconnect,
     isConnecting,
     connectionError,
-  } = useConnectionPersistence();
+  } = useMcpConnection();
 
   // Subscribe to connection store for reactive updates
   const storeSnapshot = useSyncExternalStore(
@@ -109,7 +109,7 @@ export function ServerDetail({ server }: ServerDetailProps) {
           <div className="flex items-start gap-6 flex-1 min-w-0">
             <div className="shrink-0">
               <ServerIcon
-                serverName={server.name}
+                serverName={server.shortName}
                 serverUrl={server.remoteUrl}
                 size={56}
                 className="rounded-xl shrink-0"
