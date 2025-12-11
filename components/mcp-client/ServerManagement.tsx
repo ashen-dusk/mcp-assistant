@@ -61,6 +61,8 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
         return "secondary";
       case "FAILED":
         return "destructive";
+      case "VALIDATING":
+        return "outline";
       default:
         return "outline";
     }
@@ -75,6 +77,8 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
         return <XCircle className="h-3 w-3" />;
       case "FAILED":
         return <XCircle className="h-3 w-3" />;
+      case "VALIDATING":
+        return <Loader2 className="h-3 w-3 animate-spin" />; // Spinning loader for validating
       default:
         return <Power className="h-3 w-3" />;
     }
@@ -95,30 +99,31 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
 
   return (
     <div className="flex items-center gap-3">
-        {/* Status Badge */}
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 ${
-              server.connectionStatus?.toUpperCase() === "CONNECTED"
-                ? "bg-green-500 hover:bg-green-600 animate-pulse"
-                : server.connectionStatus?.toUpperCase() === "DISCONNECTED"
-                ? "bg-yellow-500 hover:bg-yellow-600"
+      {/* Status Badge */}
+      <div className="flex items-center gap-2">
+        <div
+          className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 ${server.connectionStatus?.toUpperCase() === "CONNECTED"
+            ? "bg-green-500 hover:bg-green-600 animate-pulse"
+            : server.connectionStatus?.toUpperCase() === "VALIDATING"
+              ? "bg-yellow-500 hover:bg-yellow-600 animate-pulse"
+              : server.connectionStatus?.toUpperCase() === "DISCONNECTED"
+                ? "bg-gray-400 hover:bg-gray-500"
                 : server.connectionStatus?.toUpperCase() === "FAILED"
-                ? "bg-red-500 hover:bg-red-600 animate-pulse"
-                : "bg-gray-400 hover:bg-gray-500"
+                  ? "bg-red-500 hover:bg-red-600 animate-pulse"
+                  : "bg-gray-400 hover:bg-gray-500"
             }`}
-            title={`Status: ${server.connectionStatus || "Unknown"}`}
-          />
-          <Badge
-            variant={getStatusColor(server.connectionStatus)}
-            className="flex items-center gap-1"
-          >
-            {getStatusIcon(server.connectionStatus)}
-            <span>
-              {server.connectionStatus || "Unknown"}
-            </span>
-          </Badge>
-        </div>
+          title={`Status: ${server.connectionStatus || "Unknown"}`}
+        />
+        <Badge
+          variant={getStatusColor(server.connectionStatus)}
+          className="flex items-center gap-1"
+        >
+          {getStatusIcon(server.connectionStatus)}
+          <span>
+            {server.connectionStatus || "Unknown"}
+          </span>
+        </Badge>
+      </div>
 
 
       {/* Action Buttons */}

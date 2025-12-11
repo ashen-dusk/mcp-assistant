@@ -10,15 +10,17 @@ import { useRegistryServers } from "@/hooks/useRegistryServers";
 import { RegistryServerCard } from "./RegistryServerCard";
 import { ServerDetail } from "./ServerDetail";
 import type { ParsedRegistryServer } from "@/types/mcp";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { useConnectionContext } from "@/components/providers/ConnectionProvider";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 export function RegistryBrowser() {
-  const { activeCount } = useConnectionContext();
+  const { activeCount, connections } = useConnectionContext();
+  const { mergeWithStoredState } = useMcpConnection();
   const {
-    servers,
+    servers: rawServers,
     loading,
     error,
     hasNextPage,
@@ -30,6 +32,12 @@ export function RegistryBrowser() {
     debouncedSearch,
     refetch,
   } = useRegistryServers();
+
+  // Merge connection state into server list using the shared utility
+  const servers = useMemo(() =>
+    rawServers ? mergeWithStoredState(rawServers) : rawServers,
+    [rawServers, mergeWithStoredState]
+  );
 
   const [paginationAction, setPaginationAction] = useState<'prev' | 'next' | null>(null);
   const [selectedServer, setSelectedServer] = useState<ParsedRegistryServer | null>(null);
@@ -69,6 +77,14 @@ export function RegistryBrowser() {
 
   // If a server is selected, show detail view
   if (selectedServer) {
+    // Merge latest connection status into selected server to ensure reactivity
+    const storedConnection = connections[selectedServer.id];
+    const serverWithLatestStatus = storedConnection ? {
+      ...selectedServer,
+      connectionStatus: storedConnection.connectionStatus,
+      tools: storedConnection.tools || selectedServer.tools || [],
+    } : selectedServer;
+
     return (
       <div className="min-h-screen">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -83,12 +99,12 @@ export function RegistryBrowser() {
             </button>
             <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium text-foreground">
-              {selectedServer.title || selectedServer.name}
+              {serverWithLatestStatus.title || serverWithLatestStatus.name}
             </span>
           </div>
 
           {/* Server Detail */}
-          <ServerDetail server={selectedServer} />
+          <ServerDetail server={serverWithLatestStatus} />
         </div>
       </div>
     );

@@ -214,8 +214,8 @@ class ConnectionStore {
           });
         }
       } else {
-        // Validation failed
-        this.update(serverId, { connectionStatus: 'DISCONNECTED' });
+        // Validation failed - mark as FAILED
+        this.update(serverId, { connectionStatus: 'FAILED' });
       }
 
       // Update progress

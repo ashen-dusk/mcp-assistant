@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ParsedRegistryServer } from "@/types/mcp";
-import { useMcpConnection } from "./useMcpConnection";
 
 export function useRegistryServers(itemsPerPage: number = 10) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -12,8 +11,6 @@ export function useRegistryServers(itemsPerPage: number = 10) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const { mergeWithStoredState } = useMcpConnection();
 
   const hasNextPage = nextCursor !== null;
   const hasPreviousPage = cursorHistory.length > 0;
@@ -111,7 +108,7 @@ export function useRegistryServers(itemsPerPage: number = 10) {
   }, [debouncedSearch, itemsPerPage]);
 
   return {
-    servers: mergeWithStoredState(servers),
+    servers,
     loading,
     error,
     hasNextPage,

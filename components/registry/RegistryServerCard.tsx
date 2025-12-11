@@ -3,10 +3,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Globe, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Globe, ArrowRight, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import type { ParsedRegistryServer } from "@/types/mcp";
-import { useMcpConnection } from "@/hooks/useMcpConnection";
+
 
 interface RegistryServerCardProps {
   server: ParsedRegistryServer;
@@ -19,8 +19,10 @@ export function RegistryServerCard({
 }: RegistryServerCardProps) {
   const displayName = server.title || server.shortName;
 
-  // Get connection status from hook
-  const { isConnected } = useMcpConnection({ serverId: server.id });
+  const connectionStatus = server.connectionStatus;
+  const isConnected = connectionStatus === 'CONNECTED';
+  const isValidating = connectionStatus === 'VALIDATING';
+  const isFailed = connectionStatus === 'FAILED';
 
   return (
     <Card className="group relative overflow-hidden transition-all duration-300 border-0 bg-transparent shadow-none">
@@ -47,6 +49,12 @@ export function RegistryServerCard({
               {isConnected && (
                 <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
               )}
+              {isValidating && (
+                <Loader2 className="h-4 w-4 text-yellow-500 animate-spin shrink-0" />
+              )}
+              {isFailed && (
+                <XCircle className="h-4 w-4 text-destructive shrink-0" />
+              )}
             </div>
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground truncate">
@@ -55,6 +63,16 @@ export function RegistryServerCard({
               {isConnected && (
                 <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
                   Connected
+                </Badge>
+              )}
+              {isValidating && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-yellow-500 text-yellow-500">
+                  Validating...
+                </Badge>
+              )}
+              {isFailed && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
+                  Failed
                 </Badge>
               )}
             </div>
