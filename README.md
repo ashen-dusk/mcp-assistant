@@ -24,53 +24,31 @@ Whether you're building MCP integrations, testing MCP servers, or simply explori
 
 ## 🌟 Features
 
-<table>
-<tr>
-<td width="50%">
-
-### MCP Protocol
-- Supported transport via SSE and Streamable HTTP
-- Configure and manage multiple servers simultaneously
-- OAuth 2.0 Authorization Server Metadata (RFC8414) and OpenID Connect Discovery 1.0 support
-- Real-time connection status monitoring
-- Tool execution
-
-</td>
-<td width="50%">
-
-### Agent–User Interaction (AG-UI Protocol)
-- **Stream text message events** - Real-time message streaming for responsive interactions
-- **Backend tool rendering** - Visualize tool outputs in chats
-- **Tool output streaming** - Stream tool results and logs as real-time events
-- **Interrupts (human in the loop)** - Pause and approve workflows without losing state
-- **Shared state** - Context-aware responses using MCP tools
-
-
-</td>
-</tr>
-</table>
+| MCP Protocol | Agent–User Interaction (AG-UI Protocol) |
+| :--- | :--- |
+| • Supported transport via SSE and Streamable HTTP<br>• Configure and manage multiple servers simultaneously<br>• OAuth 2.0 Authorization Server Metadata (RFC8414) and OpenID Connect Discovery 1.0 support<br>• Real-time connection status monitoring<br>• Tool execution | • **Stream text message events** - Real-time message streaming for responsive interactions<br>• **Backend tool rendering** - Visualize tool outputs in chats<br>• **Tool output streaming** - Stream tool results and logs as real-time events<br>• **Interrupts (human in the loop)** - Pause and approve workflows without losing state<br>• **Shared state** - Context-aware responses using MCP tools |
 
 ---
 
 ##  Getting Started with MCP Assistant
 
-### Adding an MCP Server
+### 🔌 Adding an MCP Server
 
-1. Navigate to the MCP servers page
-2. Click "Add Server" button
-3. Fill in server details:
-   - Server name
-   - Transport type (SSE/Streamable HTTP)
-   - Server URL
-   - Optional: OAuth2 configuration
-4. Click "Save" to connect
+1. **Navigate** to the MCP servers page.
+2. Click the **"Add Server"** button.
+3. **Fill in** the server details:
+   - **Server Name**: A friendly name for your server.
+   - **Transport Type**: Choose between SSE or Streamable HTTP.
+   - **Server URL**: The endpoint of your MCP server.
+   - **OAuth2 Configuration** (Optional): If your server requires authentication.
+4. Click **"Save"** to establish the connection.
 
-### Using the Chat Interface
+### 💬 Using the Chat Interface
 
-1. Select connected MCP servers from the sidebar
-2. Choose your preferred LLM provider
-3. Enter your API key
-4. Start chatting - the assistant can use tools from connected MCP servers
+1. **Select** one or more connected MCP servers from the sidebar.
+2. **Choose** your preferred LLM provider.
+3. **Enter** your API key securely.
+4. **Start Chatting**: The assistant is now ready to use tools from your connected MCP servers!
 
 ---
 
