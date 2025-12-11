@@ -41,9 +41,12 @@ export function ServerDetail({ server }: ServerDetailProps) {
     disconnect,
     isConnecting,
     connectionError,
-    isConnected,
+    // isConnected, // Don't use this, rely on prop
     tools,
   } = useMcpConnection({ serverId: server.id });
+
+  const isConnected = server.connectionStatus === 'CONNECTED';
+  const isValidating = server.connectionStatus === 'VALIDATING';
 
   const handleConnect = () => connect(server);
 
@@ -92,252 +95,258 @@ export function ServerDetail({ server }: ServerDetailProps) {
             transition={{ duration: 0.3 }}
             className="flex-1"
           >
-      {/* Header Section */}
-      <div className="border-b">
-        <div className="flex items-start justify-between gap-8 flex-wrap mb-6">
-          <div className="flex items-start gap-6 flex-1 min-w-0">
-            <div className="shrink-0">
-              <ServerIcon
-                serverName={server.shortName}
-                serverUrl={server.remoteUrl}
-                size={56}
-                className="rounded-xl shrink-0"
-                fallbackImage={server.iconUrl || undefined}
-              />
+            {/* Header Section */}
+            <div className="border-b">
+              <div className="flex items-start justify-between gap-8 flex-wrap mb-6">
+                <div className="flex items-start gap-6 flex-1 min-w-0">
+                  <div className="shrink-0">
+                    <ServerIcon
+                      serverName={server.shortName}
+                      serverUrl={server.remoteUrl}
+                      size={56}
+                      className="rounded-xl shrink-0"
+                      fallbackImage={server.iconUrl || undefined}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      {server.hasRemote && (
+                        <Globe className="h-5 w-5 text-primary shrink-0" />
+                      )}
+                      <h1 className="text-3xl font-bold">{displayName}</h1>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 text-muted-foreground mb-4 flex-wrap">
+                      <span className="text-base">{server.vendor}</span>
+                      <span className="text-xs">•</span>
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        v{server.version}
+                      </Badge>
+                      {server.isLatest && (
+                        <>
+                          <span className="text-xs">•</span>
+                          <Badge variant="default" className="text-xs">Latest</Badge>
+                        </>
+                      )}
+                    </div>
+
+                    {server.connectionStatus === 'CONNECTED' && (
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="text-sm font-medium">Connected</span>
+                      </div>
+                    )}
+                    {server.connectionStatus === 'VALIDATING' && (
+                      <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm font-medium">Validating...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {server.hasRemote && (
+                  <div className="shrink-0">
+                    {!isConnected ? (
+                      <Button
+                        onClick={handleConnect}
+                        disabled={isConnecting}
+                        size="lg"
+                        className="gap-2 min-w-[140px] cursor-pointer"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 fill-current" />
+                            Connect
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleDisconnect}
+                        disabled={isDisconnecting}
+                        variant="outline"
+                        size="lg"
+                        className="gap-2 min-w-[140px] cursor-pointer"
+                      >
+                        {isDisconnecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Disconnecting...
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="h-4 w-4" />
+                            Disconnect
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                {server.hasRemote && (
-                  <Globe className="h-5 w-5 text-primary shrink-0" />
-                )}
-                <h1 className="text-3xl font-bold">{displayName}</h1>
-              </div>
+            {/* Content Section */}
+            <div className="space-y-10">
+              {connectionError && (
+                <Alert variant="destructive">
+                  <XCircle className="h-4 w-4" />
+                  <AlertDescription>{connectionError}</AlertDescription>
+                </Alert>
+              )}
 
-              <div className="flex items-center gap-2.5 text-muted-foreground mb-4 flex-wrap">
-                <span className="text-base">{server.vendor}</span>
-                <span className="text-xs">•</span>
-                <Badge variant="secondary" className="font-mono text-xs">
-                  v{server.version}
-                </Badge>
-                {server.isLatest && (
-                  <>
-                    <span className="text-xs">•</span>
-                    <Badge variant="default" className="text-xs">Latest</Badge>
-                  </>
-                )}
-              </div>
-
+              {/* Tools Explorer - Only show when connected */}
               {isConnected && (
-                <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span className="text-sm font-medium">Connected</span>
+                <div className="pb-10 border-b">
+                  <ToolsExplorer
+                    server={mcpServer}
+                    onOpenToolTester={(toolName) => {
+                      setToolTesterOpen(true);
+                      if (toolName) {
+                        setSelectedToolName(toolName);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {server.description && (
+                <div className="pb-10 border-b">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2.5">
+                    <Info className="h-5 w-5 text-primary" />
+                    About
+                  </h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {server.description}
+                  </p>
+                </div>
+              )}
+
+              {server.hasRemote && server.remoteUrl && (
+                <div className="pb-10 border-b">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2.5">
+                    <Globe className="h-5 w-5 text-primary" />
+                    Remote Endpoint
+                  </h2>
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <code className="text-sm font-mono break-all flex-1">
+                        {server.remoteUrl}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleCopyUrl}
+                        className="shrink-0"
+                      >
+                        {copiedUrl ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    This server is accessible via remote HTTP endpoint
+                  </p>
+                </div>
+              )}
+
+              {server.hasPackage && (
+                <div className="pb-10 border-b">
+                  <h2 className="text-xl font-semibold mb-2">
+                    Package Available
+                  </h2>
+                  <p className="text-muted-foreground">
+                    This server includes installable packages
+                  </p>
+                </div>
+              )}
+
+              <div className="pb-10 border-b">
+                <h2 className="text-xl font-semibold mb-6 flex items-center gap-2.5">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Metadata
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Published
+                    </label>
+                    <p className="mt-2 text-foreground">
+                      {new Date(server.publishedAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Last Updated
+                    </label>
+                    <p className="mt-2 text-foreground">
+                      {new Date(server.updatedAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Server ID
+                    </label>
+                    <p className="mt-2 font-mono text-sm break-all text-foreground/80">
+                      {server.id}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {(server.websiteUrl || server.repositoryUrl) && (
+                <div>
+                  <h2 className="text-xl font-semibold mb-6 flex items-center gap-2.5">
+                    <ExternalLink className="h-5 w-5 text-primary" />
+                    External Links
+                  </h2>
+                  <div className="flex gap-4 flex-wrap">
+                    {server.websiteUrl && (
+                      <Button variant="outline" asChild size="lg">
+                        <a
+                          href={server.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Visit Website
+                        </a>
+                      </Button>
+                    )}
+                    {server.repositoryUrl && (
+                      <Button variant="outline" asChild size="lg">
+                        <a
+                          href={server.repositoryUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View Source Code
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-
-          {server.hasRemote && (
-            <div className="shrink-0">
-              {!isConnected ? (
-                <Button
-                  onClick={handleConnect}
-                  disabled={isConnecting}
-                  size="lg"
-                  className="gap-2 min-w-[140px] cursor-pointer"
-                >
-                  {isConnecting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 fill-current" />
-                      Connect
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleDisconnect}
-                  disabled={isDisconnecting}
-                  variant="outline"
-                  size="lg"
-                  className="gap-2 min-w-[140px] cursor-pointer"
-                >
-                  {isDisconnecting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Disconnecting...
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="h-4 w-4" />
-                      Disconnect
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content Section */}
-      <div className="space-y-10">
-        {connectionError && (
-          <Alert variant="destructive">
-            <XCircle className="h-4 w-4" />
-            <AlertDescription>{connectionError}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Tools Explorer - Only show when connected */}
-        {isConnected && (
-          <div className="pb-10 border-b">
-            <ToolsExplorer
-              server={mcpServer}
-              onOpenToolTester={(toolName) => {
-                setToolTesterOpen(true);
-                if (toolName) {
-                  setSelectedToolName(toolName);
-                }
-              }}
-            />
-          </div>
-        )}
-
-        {server.description && (
-          <div className="pb-10 border-b">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2.5">
-              <Info className="h-5 w-5 text-primary" />
-              About
-            </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              {server.description}
-            </p>
-          </div>
-        )}
-
-        {server.hasRemote && server.remoteUrl && (
-          <div className="pb-10 border-b">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2.5">
-              <Globe className="h-5 w-5 text-primary" />
-              Remote Endpoint
-            </h2>
-            <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center justify-between gap-3">
-                <code className="text-sm font-mono break-all flex-1">
-                  {server.remoteUrl}
-                </code>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCopyUrl}
-                  className="shrink-0"
-                >
-                  {copiedUrl ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              This server is accessible via remote HTTP endpoint
-            </p>
-          </div>
-        )}
-
-        {server.hasPackage && (
-          <div className="pb-10 border-b">
-            <h2 className="text-xl font-semibold mb-2">
-              Package Available
-            </h2>
-            <p className="text-muted-foreground">
-              This server includes installable packages
-            </p>
-          </div>
-        )}
-
-        <div className="pb-10 border-b">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2.5">
-            <Calendar className="h-5 w-5 text-primary" />
-            Metadata
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Published
-              </label>
-              <p className="mt-2 text-foreground">
-                {new Date(server.publishedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Last Updated
-              </label>
-              <p className="mt-2 text-foreground">
-                {new Date(server.updatedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Server ID
-              </label>
-              <p className="mt-2 font-mono text-sm break-all text-foreground/80">
-                {server.id}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {(server.websiteUrl || server.repositoryUrl) && (
-          <div>
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2.5">
-              <ExternalLink className="h-5 w-5 text-primary" />
-              External Links
-            </h2>
-            <div className="flex gap-4 flex-wrap">
-              {server.websiteUrl && (
-                <Button variant="outline" asChild size="lg">
-                  <a
-                    href={server.websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Visit Website
-                  </a>
-                </Button>
-              )}
-              {server.repositoryUrl && (
-                <Button variant="outline" asChild size="lg">
-                  <a
-                    href={server.repositoryUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Source Code
-                  </a>
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
           </motion.div>
         )}
       </AnimatePresence>

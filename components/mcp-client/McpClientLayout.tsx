@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PanelLeftOpen } from "lucide-react";
 import { Toaster } from "react-hot-toast";
@@ -26,6 +26,7 @@ import ToolsExplorer from "./ToolsExplorer";
 import ToolExecutionPanel from "./ToolExecutionPanel";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { useConnectionContext } from "@/components/providers/ConnectionProvider";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 interface McpClientLayoutProps {
   publicServers: McpServer[] | null;
@@ -84,14 +85,26 @@ export default function McpClientLayout({
   const [activeTab, setActiveTab] = useState<'public' | 'user'>('public');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const { activeCount: activeServersCount, connections } = useConnectionContext();
+  const { activeCount: activeServersCount } = useConnectionContext();
+  const { mergeWithStoredState } = useMcpConnection();
 
   const searchParams = useSearchParams();
   const categorySlug = searchParams.get("category");
   const router = useRouter();
 
+  // Merge connection state into server lists using the shared utility
+  const mergedPublicServers = useMemo(() =>
+    publicServers ? mergeWithStoredState(publicServers) : publicServers,
+    [publicServers, mergeWithStoredState]
+  );
+
+  const mergedUserServers = useMemo(() =>
+    userServers ? mergeWithStoredState(userServers) : userServers,
+    [userServers, mergeWithStoredState]
+  );
+
   // Get current servers and error based on active tab
-  const currentServers = activeTab === 'public' ? publicServers : userServers;
+  const currentServers = activeTab === 'public' ? mergedPublicServers : mergedUserServers;
 
   // Update selected server when servers list changes
   useEffect(() => {
@@ -119,7 +132,7 @@ export default function McpClientLayout({
         }
       }
     }
-  }, [currentServers, selectedServer?.name, connections]);
+  }, [currentServers, selectedServer?.name]);
 
   // Close tool tester when server selection changes
   useEffect(() => {
@@ -222,8 +235,8 @@ export default function McpClientLayout({
         <AnimatePresence>
           {sidebarOpen && (
             <ServerSidebar
-              publicServers={publicServers}
-              userServers={userServers}
+              publicServers={mergedPublicServers}
+              userServers={mergedUserServers}
               publicServersCount={publicServersCount}
               userServersCount={userServersCount}
               publicLoading={publicLoading}

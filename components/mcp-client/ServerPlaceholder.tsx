@@ -29,7 +29,7 @@ export function ServerPlaceholder({ type, tab }: ServerPlaceholderProps) {
 
   if (type === "no-selection") {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[calc(100vh-120px)] bg-gray-50/30 dark:bg-zinc-900/10">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 min-h-[calc(100vh-120px)] bg-gray-50/30 dark:bg-zinc-900/10">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -37,25 +37,25 @@ export function ServerPlaceholder({ type, tab }: ServerPlaceholderProps) {
           className="max-w-3xl w-full"
         >
           {/* Hero Section */}
-          <motion.div variants={itemVariants} className="text-center mb-8">
-            <div className="relative h-16 w-16 mx-auto mb-4">
+          <motion.div variants={itemVariants} className="text-center mb-6 sm:mb-8">
+            <div className="relative h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4">
               <div className="absolute inset-0 bg-blue-500/20 dark:bg-blue-400/10 rounded-full blur-2xl animate-pulse" />
               <Image
                 src="/technologies/mcp-light.webp"
                 alt="MCP"
                 width={64}
                 height={64}
-                className="dark:hidden relative z-10 drop-shadow-sm"
+                className="dark:hidden relative z-10 drop-shadow-sm w-full h-full object-contain"
               />
               <Image
                 src="/technologies/mcp.webp"
                 alt="MCP"
                 width={64}
                 height={64}
-                className="hidden dark:block relative z-10 drop-shadow-sm"
+                className="hidden dark:block relative z-10 drop-shadow-sm w-full h-full object-contain"
               />
             </div>
-            <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 mb-3 tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 mb-3 tracking-tight">
               Welcome to MCP Assistant
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
@@ -64,7 +64,7 @@ export function ServerPlaceholder({ type, tab }: ServerPlaceholderProps) {
           </motion.div>
 
           {/* Feature Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
             <FeatureCard
               variants={itemVariants}
               icon={<Grid className="w-5 h-5 text-blue-500" />}
@@ -123,7 +123,7 @@ function FeatureCard({ icon, title, description, variants }: { icon: React.React
   return (
     <motion.div variants={variants}>
       <Card className="h-full border-border/40 shadow-sm hover:shadow-md transition-all hover:border-blue-500/20 dark:hover:border-blue-400/20 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm group cursor-default">
-        <CardContent className="p-6 flex flex-col items-center text-center h-full">
+        <CardContent className="p-4 sm:p-6 flex flex-col items-center text-center h-full">
           <div className="p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 mb-4 group-hover:scale-110 transition-transform duration-300">
             {icon}
           </div>
