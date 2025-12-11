@@ -9,8 +9,6 @@
   [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 </div>
 
----
-
 ## 🎯 Purpose
 
 MCP Assistant addresses common pain points developers face when working with the Model Context Protocol:
@@ -23,8 +21,6 @@ MCP Assistant addresses common pain points developers face when working with the
 - **Developer-Friendly**: Built-in tools explorer, real-time connection monitoring, and intuitive UI make MCP development easier
 
 Whether you're building MCP integrations, testing MCP servers, or simply exploring the MCP ecosystem, MCP Assistant streamlines the entire workflow.
-
----
 
 ## 🌟 Features
 
@@ -56,70 +52,7 @@ Whether you're building MCP integrations, testing MCP servers, or simply explori
 
 ---
 
-## 📦 Quick Start
-
-### Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js** 18 or higher
-- **npm** or **yarn** package manager
-- **Backend API** running (default: `http://localhost:8000`)
-- **Google OAuth credentials** for authentication
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd mcp-client
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables**
-   
-   Create a `.env.local` file in the root directory:
-   
-   ```env
-   # NextAuth Configuration
-   NEXTAUTH_SECRET=your_nextauth_secret_here
-   NEXTAUTH_URL=http://localhost:3000
-   
-   # Google OAuth
-   GOOGLE_CLIENT_ID=your_google_client_id
-   GOOGLE_CLIENT_SECRET=your_google_client_secret
-   
-   # Backend API
-   DJANGO_API_URL=http://localhost:8000
-   BACKEND_URL=http://localhost:8000
-   ```
-
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open your browser**
-   
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-### Production Build
-
-```bash
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
----
-
-## 🚀 Getting Started with MCP Assistant
+##  Getting Started with MCP Assistant
 
 ### Adding an MCP Server
 
@@ -142,4 +75,6 @@ npm start
 ---
 
 ## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
