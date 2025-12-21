@@ -80,7 +80,7 @@ export class MCPOAuthClient {
       // tos_uri: 'https://mcp-assistant.in/terms',
       policy_uri: 'https://mcp-assistant.in/privacy',
 
-      // Optional software metadata (recommended for DCR)
+      // Optional software metadata (DCR)
       software_id: 'mcp-assistant',
       software_version: '0.2.1',
 

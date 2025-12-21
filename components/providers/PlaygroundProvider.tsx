@@ -104,6 +104,7 @@ export function PlaygroundProvider({ children }: PropsWithChildren) {
       } : null,
       selectedTools: toolSelection.selectedTools,
       mcpSessions: toolSelection.mcpSessions,
+      plan_mode: activeAssistant?.config?.plan_mode || false, // Disable planning by default
     },
   });
 
@@ -126,6 +127,7 @@ export function PlaygroundProvider({ children }: PropsWithChildren) {
       assistant: updatedAssistant,
       selectedTools: agentState.selectedTools,
       mcpSessions: agentState.mcpSessions,
+      plan_mode: updatedAssistant?.config?.plan_mode || false,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAssistant]);
