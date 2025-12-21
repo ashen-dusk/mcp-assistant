@@ -107,6 +107,7 @@ export type AgentState = {
   llm_provider?: string; // LLM provider (openai, deepseek, etc.)
   llm_api_key?: string; // User's API key for the provider
   current_tool_call?: {name: string, args: any, result: any} | null;
+  plan_mode?: boolean; // Enable deepagents autonomous planning
 };
 
 export interface Tool {
