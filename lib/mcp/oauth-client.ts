@@ -73,6 +73,17 @@ export class MCPOAuthClient {
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       token_endpoint_auth_method: 'client_secret_post',
+      client_uri: 'https://mcp-assistant.in',
+      logo_uri: 'https://mcp-assistant.in/logo.png',
+
+      // Legal
+      // tos_uri: 'https://mcp-assistant.in/terms',
+      policy_uri: 'https://mcp-assistant.in/privacy',
+
+      // Optional software metadata (recommended for DCR)
+      software_id: 'mcp-assistant',
+      software_version: '0.2.1',
+
       // Use provided credentials if available
       ...(this.clientId ? { client_id: this.clientId } : {}),
       ...(this.clientSecret ? { client_secret: this.clientSecret } : {}),
@@ -126,7 +137,7 @@ export class MCPOAuthClient {
     } catch (error) {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
       if (error instanceof SDKUnauthorizedError ||
-          (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
         throw new UnauthorizedError('OAuth authorization required');
       } else {
         // Enhance error message with URL info
@@ -211,7 +222,7 @@ export class MCPOAuthClient {
     } catch (error) {
       // If unauthorized, try refreshing token once and retry
       if (error instanceof SDKUnauthorizedError ||
-          (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
         console.log('[OAuth Client] Received 401, attempting token refresh...');
         const refreshed = await this.refreshToken();
 
@@ -255,7 +266,7 @@ export class MCPOAuthClient {
     } catch (error) {
       // If unauthorized, try refreshing token once and retry
       if (error instanceof SDKUnauthorizedError ||
-          (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
         console.log('[OAuth Client] Received 401, attempting token refresh...');
         const refreshed = await this.refreshToken();
 
