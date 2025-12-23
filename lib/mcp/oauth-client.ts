@@ -16,13 +16,27 @@ import {
   CallToolResult,
   CallToolResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { OAuthClientMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InMemoryOAuthClientProvider } from './oauth-provider';
 
 /**
  * Supported MCP transport types
  */
 export type TransportType = 'sse' | 'streamable_http';
+
+export interface MCPOAuthClientOptions {
+  serverUrl: string;
+  callbackUrl: string;
+  onRedirect: (url: string) => void;
+  sessionId?: string;
+  transportType?: TransportType;
+  tokens?: OAuthTokens;
+  tokenExpiresAt?: number;
+  clientInformation?: OAuthClientInformationFull;
+  clientId?: string;
+  clientSecret?: string;
+  onSaveTokens?: (tokens: OAuthTokens) => void;
+}
 
 /**
  * Custom error for OAuth authorization requirements
@@ -46,18 +60,32 @@ export class MCPOAuthClient {
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private sessionId?: string;
   private transportType: TransportType;
+  private serverUrl: string;
+  private callbackUrl: string;
+  private onRedirect: (url: string) => void;
+  private tokens?: OAuthTokens;
+  private tokenExpiresAt?: number;
+  private clientInformation?: OAuthClientInformationFull;
+  private clientId?: string;
+  private clientSecret?: string;
+  private onSaveTokens?: (tokens: OAuthTokens) => void;
 
   constructor(
-    private serverUrl: string,
-    private callbackUrl: string,
-    private onRedirect: (url: string) => void,
-    sessionId?: string,
-    transportType: TransportType = 'streamable_http',
-    private clientId?: string,
-    private clientSecret?: string
+    options: MCPOAuthClientOptions
   ) {
-    this.sessionId = sessionId;
-    this.transportType = transportType;
+    this.serverUrl = options.serverUrl;
+    this.callbackUrl = options.callbackUrl;
+    this.onRedirect = options.onRedirect;
+    this.sessionId = options.sessionId;
+    this.transportType = options.transportType || 'streamable_http';
+    this.tokens = options.tokens;
+    this.tokenExpiresAt = options.tokenExpiresAt;
+    this.clientInformation = options.clientInformation;
+    this.clientId = options.clientId;
+    this.clientSecret = options.clientSecret;
+    this.onSaveTokens = options.onSaveTokens;
+
+    // console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
   }
 
   /**
@@ -97,7 +125,10 @@ export class MCPOAuthClient {
 
         this.onRedirect(redirectUrl.toString());
       },
-      this.sessionId // Pass sessionId as the state parameter
+      this.sessionId, // Pass sessionId as the state parameter
+      this.tokens,
+      this.clientInformation,
+      this.tokenExpiresAt
     );
 
     this.client = new Client(
@@ -133,6 +164,7 @@ export class MCPOAuthClient {
     }
 
     try {
+      await this.getValidTokens();
       await this.client.connect(this.transport);
     } catch (error) {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
@@ -140,10 +172,6 @@ export class MCPOAuthClient {
         (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
         throw new UnauthorizedError('OAuth authorization required');
       } else {
-        // Enhance error message with URL info
-        if (error instanceof Error) {
-          throw new Error(`Failed to connect to ${this.serverUrl}: ${error.message}`);
-        }
         throw error;
       }
     }
@@ -210,29 +238,14 @@ export class MCPOAuthClient {
     }
 
     // Get valid tokens before making request
-    await this.getValidTokens();
+    // await this.getValidTokens();
 
     const request: ListToolsRequest = {
       method: 'tools/list',
       params: {},
     };
 
-    try {
-      return await this.client.request(request, ListToolsResultSchema);
-    } catch (error) {
-      // If unauthorized, try refreshing token once and retry
-      if (error instanceof SDKUnauthorizedError ||
-        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
-        console.log('[OAuth Client] Received 401, attempting token refresh...');
-        const refreshed = await this.refreshToken();
-
-        if (refreshed) {
-          await this.reconnect();
-          return await this.client.request(request, ListToolsResultSchema);
-        }
-      }
-      throw error;
-    }
+    return await this.client.request(request, ListToolsResultSchema);
   }
 
   /**
@@ -251,7 +264,7 @@ export class MCPOAuthClient {
     }
 
     // Get valid tokens before making request
-    await this.getValidTokens();
+    // await this.getValidTokens();
 
     const request: CallToolRequest = {
       method: 'tools/call',
@@ -261,22 +274,7 @@ export class MCPOAuthClient {
       },
     };
 
-    try {
-      return await this.client.request(request, CallToolResultSchema);
-    } catch (error) {
-      // If unauthorized, try refreshing token once and retry
-      if (error instanceof SDKUnauthorizedError ||
-        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
-        console.log('[OAuth Client] Received 401, attempting token refresh...');
-        const refreshed = await this.refreshToken();
-
-        if (refreshed) {
-          await this.reconnect();
-          return await this.client.request(request, CallToolResultSchema);
-        }
-      }
-      throw error;
-    }
+    return await this.client.request(request, CallToolResultSchema);
   }
 
   /**
@@ -309,6 +307,10 @@ export class MCPOAuthClient {
       const resourceMetadata = await discoverOAuthProtectedResourceMetadata(this.serverUrl);
       const authServerUrl = resourceMetadata?.authorization_servers?.[0] || this.serverUrl;
       const authMetadata = await discoverAuthorizationServerMetadata(authServerUrl);
+      console.log('[OAuth Client] Discovered OAuth metadata:', authMetadata);
+      console.log('[OAuth Client] Discovered auth server URL:', authServerUrl);
+      console.log('[OAuth Client] Client information:', clientInformation);
+      console.log('[OAuth Client] Refresh token:', tokens.refresh_token);
 
       // Use the MCP SDK's refreshAuthorization function
       const newTokens = await refreshAuthorization(authServerUrl, {
@@ -319,6 +321,12 @@ export class MCPOAuthClient {
 
       // Save the new tokens
       this.oauthProvider.saveTokens(newTokens);
+
+      // Notify about token update
+      if (this.onSaveTokens) {
+        this.onSaveTokens(newTokens);
+      }
+
       console.log('[OAuth Client] ✅ Token refresh successful');
 
       return true;
@@ -334,22 +342,17 @@ export class MCPOAuthClient {
    * @returns True if tokens are valid (either not expired or successfully refreshed)
    */
   async getValidTokens(): Promise<boolean> {
+    console.log('[OAuth Client] Checking token validity...');
     if (!this.oauthProvider) {
+      console.error('[OAuth Client] Cannot get valid tokens: OAuth provider not initialized');
       return false;
     }
 
     // Check if token is expired
     if (this.oauthProvider.isTokenExpired()) {
       console.log('[OAuth Client] Token expired, attempting refresh...');
-      const refreshed = await this.refreshToken();
-
-      if (refreshed) {
-        // Reconnect with new tokens
-        await this.reconnect();
-        return true;
-      }
-
-      return false;
+      await this.refreshToken()
+      return true;
     }
 
     return true; // Token is still valid

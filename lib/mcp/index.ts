@@ -10,7 +10,13 @@
  *
  * // In your API route
  * const sessionId = sessionStore.generateSessionId();
- * const client = new MCPOAuthClient(serverUrl, callbackUrl, onRedirect);
+ * const client = new MCPOAuthClient({
+ *   callbackUrl,
+ *   onRedirect,
+ *   onSaveTokens: (tokens) => {
+ *     // persist tokens
+ *   }
+ * });
  * await client.connect();
  * await sessionStore.setClient(sessionId, client);
  * ```

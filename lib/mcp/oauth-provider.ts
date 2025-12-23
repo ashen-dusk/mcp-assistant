@@ -27,14 +27,22 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     private readonly _redirectUrl: string | URL,
     private readonly _clientMetadata: OAuthClientMetadata,
     onRedirect?: (url: URL) => void,
-    state?: string
+    state?: string,
+    tokens?: OAuthTokens,
+    clientInformation?: OAuthClientInformationFull,
+    tokenExpiresAt?: number // Add clientInformation to constructor
   ) {
+    // console.log('[InMemoryOAuthClientProvider] Initializing with tokens:', tokens ? 'Yes' : 'No', tokens);
+    // console.log('[InMemoryOAuthClientProvider] clientInformation:', clientInformation);
     this._onRedirect =
       onRedirect ||
       ((url) => {
         console.log(`Redirect to: ${url.toString()}`);
       });
     this._state = state;
+    this._tokens = tokens;
+    this._clientInformation = clientInformation;
+    this._tokenExpiresAt = tokenExpiresAt;
   }
 
   /**
@@ -83,18 +91,19 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
    * Save OAuth tokens after successful authorization
    */
   saveTokens(tokens: OAuthTokens): void {
+    console.log('[InMemoryOAuthClientProvider] Saving new tokens:', tokens);
     this._tokens = tokens;
 
     // Calculate token expiration time if expires_in is provided
-    if (tokens.expires_in) {
-      // expires_in is in seconds, convert to milliseconds
-      // Subtract 5 minutes as a buffer to refresh before actual expiration
-      const bufferMs = 5 * 60 * 1000; // 5 minutes
-      this._tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
-    } else {
-      // If no expires_in, assume token expires in 1 hour (conservative default)
-      this._tokenExpiresAt = Date.now() + (60 * 60 * 1000);
-    }
+    // if (tokens.expires_in) {
+    //   // expires_in is in seconds, convert to milliseconds
+    //   // Subtract 5 minutes as a buffer to refresh before actual expiration
+    //   const bufferMs = 5 * 60 * 1000; // 5 minutes
+    //   this._tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+    // } else {
+    //   // If no expires_in, assume token expires in 1 hour (conservative default)
+    //   this._tokenExpiresAt = Date.now() + (60 * 60 * 1000);
+    // }
   }
 
   /**
@@ -102,8 +111,10 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
    */
   isTokenExpired(): boolean {
     if (!this._tokens || !this._tokenExpiresAt) {
+      console.log(`[InMemoryOAuthClientProvider] No tokens to expire ${this._tokens}, ${this._tokenExpiresAt}`);
       return false; // No tokens to expire
     }
+    console.log(`[InMemoryOAuthClientProvider] checking Token expiry: ${Date.now()} ; ${this._tokenExpiresAt}`);
     return Date.now() >= this._tokenExpiresAt;
   }
 

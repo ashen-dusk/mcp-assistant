@@ -5,6 +5,7 @@ import type {
   OAuthClientInformationMixed,
 } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { customAlphabet } from 'nanoid';
+import { redis } from './redis';
 
 export interface SessionData {
   sessionId: string;
@@ -26,34 +27,13 @@ const nanoid = customAlphabet(
 );
 
 export class SessionStore {
-  private redis: Redis;
+  // private redis: Redis;
   private readonly SESSION_TTL = 43200; // 12 hours
   private readonly KEY_PREFIX = 'mcp:session:';
   private readonly USER_PREFIX = 'mcp:user:';
 
-  constructor() {
-    const redisUrl = process.env.REDIS_URL || process.env.NEXT_PUBLIC_REDIS_URL;
-    if (!redisUrl) {
-      throw new Error('REDIS_URL environment variable is required');
-    }
-
-    this.redis = new Redis(redisUrl, {
-      retryStrategy: (times) => Math.min(times * 50, 2000),
-      maxRetriesPerRequest: 3,
-      lazyConnect: false,
-      enableReadyCheck: true,
-      connectTimeout: 10000,
-    });
-
-    this.redis.on('ready', () => {
-      console.log('✅ Session Store: Redis connected');
-    });
-    this.redis.on('error', (err) => {
-      console.error('❌ Session Store: Redis error:', err.message);
-    });
-    this.redis.on('reconnecting', () => {
-      console.log('🔄 Session Store: Reconnecting to Redis...');
-    });
+  constructor(private redis: Redis) {
+  
   }
 
   private getSessionKey(sessionId: string): string {
@@ -93,9 +73,9 @@ export class SessionStore {
             clientInformation = oauthProvider.clientInformation();
             try {
               codeVerifier = oauthProvider.codeVerifier();
-            } catch {}
+            } catch { }
           }
-        } catch {}
+        } catch { }
 
         resolvedServerUrl ||= client.getServerUrl();
         resolvedCallbackUrl ||= client.getCallbackUrl();
@@ -160,29 +140,40 @@ export class SessionStore {
     }
   }
 
-  private async recreateClient(sessionData: SessionData): Promise<MCPOAuthClient> {
-    console.log(
-      `🔄 Recreating client: sessionId=${sessionData.sessionId}, hasTokens=${!!sessionData.tokens}`
-    );
+  async getClient(sessionId: string): Promise<MCPOAuthClient | null> {
+    const sessionData = await this.getSession(sessionId);
+    if (!sessionData) return null;
 
-    const client = new MCPOAuthClient(
-      sessionData.serverUrl,
-      sessionData.callbackUrl,
-      () => {},
-      sessionData.sessionId,
-      sessionData.transportType
-    );
+    // Create client with same parameters
+    const client = new MCPOAuthClient({
+      serverUrl: sessionData.serverUrl,
+      callbackUrl: sessionData.callbackUrl,
+      onRedirect: () => { },
+      sessionId: sessionData.sessionId,
+      transportType: sessionData.transportType,
+      tokens: sessionData.tokens,
+      tokenExpiresAt: sessionData.tokenExpiresAt,
+      clientInformation: sessionData.clientInformation as any,
+      onSaveTokens: (tokens: OAuthTokens) => {
+        console.log(`✅ [onSaveTokens] onSaveTokens ${JSON.stringify(tokens)}`);
+        this.updateTokens(sessionData.sessionId, tokens).catch(err => {
+          console.error(`❌ [onSaveTokens] Failed to update tokens in Redis for session ${sessionData.sessionId}:`, err);
+        });
+      }
+    });
 
+    // If no tokens, this is a mid-OAuth flow session
     if (!sessionData.tokens) {
       console.log(`⚠️ Session has no tokens (mid-OAuth flow): ${sessionData.sessionId}`);
 
+      // Connect to initialize OAuth provider
       await client.connect().catch((err) => {
         console.log(
-          `🔐 Client awaiting OAuth (expected mid-flow): ${err instanceof Error ? err.message : String(err)
-          }`
+          `🔐 Client awaiting OAuth (expected mid-flow): ${err instanceof Error ? err.message : String(err)}`
         );
       });
 
+      // Restore client information and code verifier for OAuth flow
       const oauthProvider = client.oauthProvider;
       if (oauthProvider) {
         if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
@@ -191,53 +182,37 @@ export class SessionStore {
         }
         if (sessionData.codeVerifier) {
           oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
-          console.log(`✅ Restored code verifier for mid-OAuth (required for finishAuth)`);
+          console.log(`✅ Restored code verifier for mid-OAuth`);
         }
       }
 
       return client;
     }
 
+    // Session has tokens - restore authenticated session
     console.log(`🔐 Restoring OAuth session: ${sessionData.sessionId}`);
 
-    try {
+    // Connect to initialize OAuth provider
+    try{
+
       await client.connect();
-    } catch (err) {
-      console.log(
-        `🔄 Initial connect failed (often expected): ${err instanceof Error ? err.message : String(err)
-        }`
-      );
-    }
-
-    const oauthProvider = client.oauthProvider;
-    if (!oauthProvider) {
-      throw new Error('OAuth provider not initialized');
-    }
-
-    if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
-      oauthProvider.saveClientInformation(sessionData.clientInformation);
-    }
-    if (sessionData.tokens && 'access_token' in sessionData.tokens) {
-      oauthProvider.saveTokens(sessionData.tokens);
-
-      // Restore token expiration if available
-      if (sessionData.tokenExpiresAt && '_tokenExpiresAt' in oauthProvider) {
-        (oauthProvider as any)._tokenExpiresAt = sessionData.tokenExpiresAt;
+      const oauthProvider = client.oauthProvider;
+      if (!oauthProvider) {
+        throw new Error('OAuth provider not initialized');
       }
+      // similarly we can add additional signature in MCPOAuthClient class to save the client information and code verifier (for now we are doing this way)
+      if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
+        oauthProvider.saveClientInformation(sessionData.clientInformation);
+      }
+      if (sessionData.codeVerifier) {
+        oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
+      }
+      return client;
     }
-    if (sessionData.codeVerifier) {
-      oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
+    catch(err){
+      console.error(`❌ Failed to restore OAuth session for ${sessionData.sessionId}:`, err);
+      throw err;
     }
-
-    await client.reconnect();
-    console.log(`✅ OAuth session restored: ${sessionData.sessionId}`);
-    return client;
-  }
-
-  async getClient(sessionId: string): Promise<MCPOAuthClient | null> {
-    const sessionData = await this.getSession(sessionId);
-    if (!sessionData) return null;
-    return this.recreateClient(sessionData);
   }
 
   async getUserMcpSessions(userId: string): Promise<string[]> {
@@ -263,14 +238,14 @@ export class SessionStore {
         return;
       }
 
-      // Calculate token expiration
+      // // Calculate token expiration
       let tokenExpiresAt: number | undefined;
       if (tokens.expires_in) {
-        const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
-        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+        // const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
+        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000);
       }
 
-      // Update session data with new tokens
+      // // Update session data with new tokens
       sessionData.tokens = tokens;
       sessionData.tokenExpiresAt = tokenExpiresAt;
 
@@ -357,4 +332,4 @@ export class SessionStore {
   }
 }
 
-export const sessionStore = new SessionStore();
+export const sessionStore = new SessionStore(redis);

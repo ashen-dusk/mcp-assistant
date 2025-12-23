@@ -69,17 +69,22 @@ export async function POST(request: NextRequest) {
     const stateData = JSON.stringify({ sessionId, serverId, serverName, serverUrl, sourceUrl });
 
     // Create MCP client with redirect handler and state data
-    const client = new MCPOAuthClient(
+    const client = new MCPOAuthClient({
       serverUrl,
       callbackUrl,
-      (redirectUrl: string) => {
+      onRedirect: (redirectUrl: string) => {
         authUrl = redirectUrl;
       },
-      stateData, // Pass state data (sessionId + serverName) for OAuth state parameter
-      transportType, // Pass transport type
-      clientId, // Pass client ID if provided
-      clientSecret // Pass client secret if provided
-    );
+      sessionId: stateData,
+      transportType,
+      clientId,
+      clientSecret,
+      onSaveTokens: (tokens) => {
+        sessionStore.updateTokens(sessionId, tokens).catch(err => {
+          console.error(`❌ Failed to update tokens in Redis for session ${sessionId}:`, err);
+        });
+      }
+    });
 
     try {
       // Attempt to connect
