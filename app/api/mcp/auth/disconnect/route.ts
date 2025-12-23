@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Remove client from session store (this also calls disconnect)
     await sessionStore.removeSession(sessionId);
-
+    // await sessionStore.clearAll()
     return NextResponse.json({
       success: true,
       message: 'Disconnected successfully',

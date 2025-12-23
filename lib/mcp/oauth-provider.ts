@@ -27,14 +27,19 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     private readonly _redirectUrl: string | URL,
     private readonly _clientMetadata: OAuthClientMetadata,
     onRedirect?: (url: URL) => void,
-    state?: string
+    state?: string,
+    tokens?: OAuthTokens,
+    clientInformation?: OAuthClientInformationFull // Add clientInformation to constructor
   ) {
+    console.log('[InMemoryOAuthClientProvider] Initializing with tokens:', tokens ? 'Yes' : 'No', tokens);
     this._onRedirect =
       onRedirect ||
       ((url) => {
         console.log(`Redirect to: ${url.toString()}`);
       });
     this._state = state;
+    this._tokens = tokens;
+    this._clientInformation = clientInformation;
   }
 
   /**
@@ -83,6 +88,7 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
    * Save OAuth tokens after successful authorization
    */
   saveTokens(tokens: OAuthTokens): void {
+    console.log('[InMemoryOAuthClientProvider] Saving new tokens:', tokens);
     this._tokens = tokens;
 
     // Calculate token expiration time if expires_in is provided

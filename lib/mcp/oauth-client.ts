@@ -16,7 +16,7 @@ import {
   CallToolResult,
   CallToolResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { OAuthClientMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InMemoryOAuthClientProvider } from './oauth-provider';
 
 /**
@@ -53,9 +53,12 @@ export class MCPOAuthClient {
     private onRedirect: (url: string) => void,
     sessionId?: string,
     transportType: TransportType = 'streamable_http',
+    private tokens?: OAuthTokens,
+    private clientInformation?: OAuthClientInformationFull,
     private clientId?: string,
-    private clientSecret?: string
+    private clientSecret?: string,
   ) {
+    console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
     this.sessionId = sessionId;
     this.transportType = transportType;
   }
@@ -97,7 +100,9 @@ export class MCPOAuthClient {
 
         this.onRedirect(redirectUrl.toString());
       },
-      this.sessionId // Pass sessionId as the state parameter
+      this.sessionId, // Pass sessionId as the state parameter
+      this.tokens,
+      this.clientInformation
     );
 
     this.client = new Client(
@@ -133,11 +138,28 @@ export class MCPOAuthClient {
     }
 
     try {
+      await this.getValidTokens();
       await this.client.connect(this.transport);
     } catch (error) {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
       if (error instanceof SDKUnauthorizedError ||
         (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+
+        console.log('[OAuth Client] Connection failed with 401, attempting token refresh...');
+        const refreshed = await this.refreshToken();
+
+        if (refreshed) {
+          try {
+            // Re-create transport with new tokens (just in case)
+            // Actually transport uses oauthProvider which has new tokens now.
+            await this.client.connect(this.transport);
+            console.log('[OAuth Client] Reconnected after refresh');
+            return;
+          } catch (retryError) {
+            console.error('[OAuth Client] Failed to reconnect after refresh:', retryError);
+          }
+        }
+
         throw new UnauthorizedError('OAuth authorization required');
       } else {
         // Enhance error message with URL info
@@ -334,7 +356,9 @@ export class MCPOAuthClient {
    * @returns True if tokens are valid (either not expired or successfully refreshed)
    */
   async getValidTokens(): Promise<boolean> {
+    console.log('[OAuth Client] Checking token validity...');
     if (!this.oauthProvider) {
+      console.error('[OAuth Client] Cannot get valid tokens: OAuth provider not initialized');
       return false;
     }
 

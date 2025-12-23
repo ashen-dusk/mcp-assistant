@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
       },
       stateData, // Pass state data (sessionId + serverName) for OAuth state parameter
       transportType, // Pass transport type
+      undefined, // tokens
+      undefined, // clientInformation
       clientId, // Pass client ID if provided
       clientSecret // Pass client secret if provided
     );
