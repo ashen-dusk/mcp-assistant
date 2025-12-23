@@ -312,15 +312,6 @@ export class MCPOAuthClient {
       console.log('[OAuth Client] Client information:', clientInformation);
       console.log('[OAuth Client] Refresh token:', tokens.refresh_token);
 
-      // test
-      // this.onSaveTokens?.({
-      //   access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzb19vaWRjX2tleV9wYWlyXzAxSzNONE05ME1FUUQwNTczUk4yUlpYSzk5In0.eyJpc3MiOiJodHRwczovL3N1cnByaXNpbmctdGVjaG5vbG9neS0xNS1zdGFnaW5nLmF1dGhraXQuYXBwIiwiYXVkIjoiY2xpZW50XzAxSzNONE05OTBQUVY1QlFRWFo5QjAySFIwIiwic3ViIjoidXNlcl8wMUs3NktTN0VDNzNIS0JONUI3QkdCM0I0VyIsInNpZCI6ImFwcF9jb25zZW50XzAxS0Q2NktGV0VZQktYSFdXQkQyVzFQN1k5IiwianRpIjoiMDFLRDY4VDk4M1cxUUZKNUhKVEhETk4ySzAiLCJleHAiOjE3NjY1MTYxMTcsImlhdCI6MTc2NjUxNTg3N30.PoaM-ms3TxLHH5hZ7Cp350_YTNAh6hzT7Y1aaDgA8c07W32D_p8pSEzKHpmyFkrJpk3VYWesChbKn7QVbX629p_btr7m6gaNKavaMETisBrjltoOGoURJ_a1sXbVmCg1Ee-IY2FGoUru3mKdg7CWX5UI9Zn9G2d_UezW33WcIYRpNCI_xLo3GxKGwnccNWA604i_rxNWGMwOquQsBRLw5GaNyBidmGTp8iEF21gZmUwJf91edQMuH8iyLePXMBbkf7qWgVkPlD0JUeJpO3S5wygI4bLb9HnHGPCgtdd82linia3QcRWejyIVA6YtHS9Xj0GQ1SfgZx0pvA5PONXXbQ',
-      //   id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzb19vaWRjX2tleV9wYWlyXzAxSzNONE05ME1FUUQwNTczUk4yUlpYSzk5In0.eyJpc3MiOiJodHRwczovL3N1cnByaXNpbmctdGVjaG5vbG9neS0xNS1zdGFnaW5nLmF1dGhraXQuYXBwIiwiYXVkIjoiY2xpZW50XzAxS0Q2Nks3UkU1WVBLOE01Rk1TVDVaUks3Iiwic3ViIjoidXNlcl8wMUs3NktTN0VDNzNIS0JONUI3QkdCM0I0VyIsImV4cCI6MTc2NjUxOTQ3NywiaWF0IjoxNzY2NTE1ODc3fQ.fudtJCIOic5OC2gMwLAniEONdsnA8FhBefSTOKPeXteAgPzRQmkOQcTsc2v6s-V2c9uSfObETfCEBeGr9oT9piEliNVF3bhVkAwB4bTIAW7R0er9bQZI_F_-Hiq7RFha5PoBaE2iasGSd3VmsvEZn-BtYRKsU7BUTZlCzuqc-DKs9MGX1wg3D2ePiMukbKLNcjWbjF7VJm5hQJ-4y9a9ThQo7dQx7CwHPNOdpCKBXkS3f0u8qmK5ka5tT43OZPab5-FZN8q0P6rQ8ky1BsVKyMelcGIXchNh8owTtYUuRwPUDynxNpcsT1Omqr5cRvjmRDF-Ga9u1wWWIFZLLSJanw',
-      //   token_type: 'bearer',
-      //   expires_in: 240,
-      //   refresh_token: 'aVKMVBx189Zu5HJgH94agNH42'
-      // })
-
       // Use the MCP SDK's refreshAuthorization function
       const newTokens = await refreshAuthorization(authServerUrl, {
         metadata: authMetadata,
