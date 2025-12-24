@@ -14,17 +14,14 @@ const serviceAdapter = new EmptyAdapter();
 
 export const POST = async (req: NextRequest) => {
   /**
-   * 1️⃣ Auth
+   * 1️⃣ get session
    */
   const session = await getServerSession(authOptions);
-  if (!session) {
-    return new Response("Unauthorized", { status: 401 });
-  }
 
   /**
    * 2️⃣ Resolve MCP config (ASYNC, SERVER SIDE)
    */
-  const userId = (session.user as any)?.id;
+  const userId = (session?.user as any)?.id;
   const mcpConfig: McpServerConfig = {};
 
   if (userId) {
@@ -79,7 +76,7 @@ export const POST = async (req: NextRequest) => {
       "http://localhost:8000/api/langgraph-agent",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session.googleIdToken}`,
+      Authorization: `Bearer ${session?.googleIdToken}`,
     },
   });
 
