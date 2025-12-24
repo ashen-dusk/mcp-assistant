@@ -4,17 +4,17 @@ import type { PropsWithChildren } from "react";
 
 export default function PlaygroundLayout({ children }: PropsWithChildren) {
   return (
-    <PlaygroundProvider>
-      <CopilotKit
-        // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
-        agent="mcpAssistant"
-        runtimeUrl="/api/copilotkit"
-        showDevConsole={false}
-        transcribeAudioUrl="/api/transcribe"
-        textToSpeechUrl="/api/tts"
-      >
+    <CopilotKit
+      // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
+      agent="mcpAssistant"
+      runtimeUrl="/api/copilotkit"
+      showDevConsole={false}
+      transcribeAudioUrl="/api/transcribe"
+      textToSpeechUrl="/api/tts"
+    >
+      <PlaygroundProvider>
         {children}
-      </CopilotKit>
-    </PlaygroundProvider>
+      </PlaygroundProvider>
+    </CopilotKit>
   );
 }
