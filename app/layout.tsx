@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { ApolloProvider } from "@/components/providers/ApolloProvider";
-import { CopilotKit } from "@copilotkit/react-core";
 import "@copilotkit/react-ui/styles.css";
 import Header from "@/components/common/Header";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -45,14 +44,6 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <CopilotKit
-                // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
-                agent="mcpAssistant"
-                runtimeUrl="/api/copilotkit"
-                showDevConsole={false}
-                transcribeAudioUrl="/api/transcribe"
-                textToSpeechUrl="/api/tts"
-              >
                 <div className="min-h-screen bg-background">
                   <div className="max-w-5xl mx-auto">
                     <Header />
@@ -61,7 +52,6 @@ export default function RootLayout({
                     </main>
                   </div>
                 </div>
-              </CopilotKit>
             </ThemeProvider>
           </ApolloProvider>
         </AuthProvider>

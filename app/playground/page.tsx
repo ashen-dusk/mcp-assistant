@@ -35,6 +35,7 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
 };
 
 const PlaygroundPage = () => {
+
   const { activeAssistant } = usePlayground();
   const askMode = activeAssistant?.config?.ask_mode;
 
