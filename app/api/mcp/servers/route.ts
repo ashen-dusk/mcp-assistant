@@ -74,8 +74,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.googleIdToken) {
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
