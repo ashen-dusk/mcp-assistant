@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useQuery } from "@apollo/client/react";
 import { CATEGORIES_QUERY } from "@/lib/graphql";
@@ -197,7 +197,7 @@ export default function ServerForm({
                         <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
                             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                             <AlertDescription className="text-sm text-amber-800 dark:text-amber-200">
-                                Please <Link href="/api/auth/signin" className="font-semibold underline hover:text-amber-900 dark:hover:text-amber-100">sign in</Link> to save your server configuration.
+                                Please <Link href="/signin" className="font-semibold underline hover:text-amber-900 dark:hover:text-amber-100">sign in</Link> to save your server configuration.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -404,10 +404,10 @@ export default function ServerForm({
                                 />
                                 <div className="space-y-1">
                                     <Label htmlFor="requiresOauth" className="text-sm font-medium">
-                                        Requires OAuth2
+                                        OAuth2.1
                                     </Label>
                                     <p className="text-xs text-muted-foreground">
-                                        Enable if this server requires OAuth2 authentication flow.
+                                        Enable if the server requires OAuth2.1.
                                     </p>
                                 </div>
                             </div>
