@@ -75,7 +75,7 @@ const fadeInUp: Variants = {
 // -------------------------------------------------------------------
 export default function Home() {
   return (
-    <div className="relative max-w-7xl mx-auto min-h-screen overflow-hidden">
+    <div className="relative max-w-5xl mx-auto min-h-screen overflow-hidden">
       {/* Hero Section */}
       <Stack
         dir="column"
