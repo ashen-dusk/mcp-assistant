@@ -71,7 +71,7 @@ function Pattern({
         if (!generateRandom) return;
         const totalRows = 47;
         const totalCols = 30;
-        const count = 50;
+        const count = 45;
         const newLit = new Set<string>();
         for (let k = 0; k < count; k++) {
             // Constrain to center area (approx middle 50%)
