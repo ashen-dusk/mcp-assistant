@@ -33,7 +33,7 @@ const ChatInputWrapper = ({ onSend, disabled }: { onSend: (message: Message) => 
       onSendMessage={(text) => onSend({ id: crypto.randomUUID(), role: "user", content: text })}
       pushToTalkState={pushToTalkState}
       onPushToTalkStateChange={setPushToTalkState}
-      disabled={disabled}
+      // disabled={disabled}
     />
   );
 };
@@ -58,7 +58,7 @@ const PlaygroundPage = () => {
   const isChatEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-[calc(100vh-110px)] bg-[#0a0a0a] text-zinc-200">
+    <div className="flex h-screen bg-[#0a0a0a] text-zinc-200">
       <PlaygroundSidebar />
 
       <main className="flex-1 flex flex-col relative overflow-hidden">

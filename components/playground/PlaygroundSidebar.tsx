@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Network,
   LucideIcon,
+  User,
 } from "lucide-react";
 import { A2AAgentManager } from "./A2AAgentManager";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { User as SupabaseUser } from "@supabase/supabase-js";
+import Image from "next/image";
+import { UserProfileSheet } from "./UserProfileSheet";
 
 interface SidebarNavLinkProps {
   icon: LucideIcon;
@@ -46,6 +51,26 @@ const SidebarNavLink = ({
 export const PlaygroundSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"agents">("agents");
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
+  const userImage = user?.user_metadata?.avatar_url;
 
   return (
     <div
@@ -105,6 +130,49 @@ export const PlaygroundSidebar = () => {
           )}
         </div>
       </div>
+
+      {/* Profile Button at Bottom */}
+      <div className={cn("border-t p-2 flex-shrink-0", isOpen ? "" : "")}>
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className={cn(
+            "w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors cursor-pointer",
+            isOpen ? "justify-start" : "justify-center"
+          )}
+          title={isOpen ? undefined : "Profile"}
+        >
+          {userImage ? (
+            <Image
+              src={userImage}
+              alt={userName}
+              width={32}
+              height={32}
+              className="rounded-full flex-shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+          )}
+          {isOpen && (
+            <div className="flex flex-col items-start overflow-hidden">
+              <span className="text-sm font-medium truncate w-full">{userName}</span>
+              {user?.email && (
+                <span className="text-xs text-muted-foreground truncate w-full">
+                  {user.email}
+                </span>
+              )}
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Profile Sheet */}
+      <UserProfileSheet
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+      />
     </div>
   );
 };

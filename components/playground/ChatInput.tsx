@@ -380,7 +380,7 @@ export default function ChatInput({
       />
 
       <div className="w-full px-2 sm:px-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-gray-400 dark:border-zinc-700 shadow-xl hover:border-gray-500 dark:hover:border-zinc-600 transition-colors">
+        <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl border-2 border-gray-400 dark:border-zinc-700/50 shadow-xl hover:border-gray-500 dark:hover:border-zinc-600 transition-colors">
           {/* Parent container with two children */}
           <div className="flex flex-col">
             {/* First child: Textarea for prompt */}

@@ -4,18 +4,20 @@ import type { PropsWithChildren } from "react";
 
 export default function PlaygroundLayout({ children }: PropsWithChildren) {
   return (
-    <CopilotKit
-      // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
-      publicLicenseKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
-      agent="mcpAssistant"
-      runtimeUrl="/api/copilotkit"
-      showDevConsole={false}
-      transcribeAudioUrl="/api/transcribe"
-      textToSpeechUrl="/api/tts"
-    >
-      <PlaygroundProvider>
-        {children}
-      </PlaygroundProvider>
-    </CopilotKit>
+    <div className="fixed inset-0 z-50 bg-background">
+      <CopilotKit
+        // publicApiKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
+        publicLicenseKey="ck_pub_25f0c954d92a58b0921a536c7c4466b1"
+        agent="mcpAssistant"
+        runtimeUrl="/api/copilotkit"
+        showDevConsole={false}
+        transcribeAudioUrl="/api/transcribe"
+        textToSpeechUrl="/api/tts"
+      >
+        <PlaygroundProvider>
+          {children}
+        </PlaygroundProvider>
+      </CopilotKit>
+    </div>
   );
 }
