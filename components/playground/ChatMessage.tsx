@@ -96,7 +96,7 @@ export function AssistantMessage({
   showReasoning = false,
 }: any) {
   const { agent } = useAgent({ agentId: "mcpAssistant" });
-  console.log(`assistant message: ${JSON.stringify(message)}`);
+  // console.log(`assistant message: ${JSON.stringify(message)}`);
 
   const messageContent =
     typeof message === "string"

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useCopilotChatHeadless_c } from "@copilotkit/react-core";
+import { useCopilotChatHeadless_c, useLangGraphInterrupt, useLangGraphInterruptRender } from "@copilotkit/react-core";
 import { Message } from "@copilotkit/shared";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ import { RecipeComponent } from "@/components/playground/RecipeComponent";
 import { useAgent } from "@copilotkit/react-core/v2";
 import { TimeDisplay } from "@/components/playground/TimeDisplay";
 import { LoadingSpinner } from "@/components/playground/LoadingSpinner";
+import { ServerIcon } from "@/components/common/ServerIcon";
+import { Button } from "@/components/ui/button";
 
 /* ---------- INPUT WRAPPER ---------- */
 
@@ -59,9 +61,11 @@ const PlaygroundPage = () => {
   const { activeAssistant } = usePlayground();
   const { agent } = useAgent({agentId: 'mcpAssistant'});
   const askMode = activeAssistant?.config?.ask_mode;
-
+  
   const { messages, sendMessage, isLoading, interrupt, stopGeneration } = useCopilotChatHeadless_c();
+  const interruptUI = useLangGraphInterruptRender(agent);
 
+  console.log("PlaygroundPage - interrupt:", interrupt);
   // Calculate isChatEmpty early
   const isChatEmpty = messages.length === 0;
 
@@ -85,6 +89,8 @@ const PlaygroundPage = () => {
     });
   };
 
+  // console.log(`PlaygroundPage Render - messages: ${JSON.stringify(agent.messages) }`);
+  
   return (
     <>
       {/* Header with Date, Time, and Language */}
@@ -131,7 +137,10 @@ const PlaygroundPage = () => {
             <div className="space-y-4 sm:space-y-6 md:space-y-8">
               {/* Plugin UI / HITL */}
               <div className="space-y-3 sm:space-y-4">
-                  {interrupt ? <HumanInTheLoop /> : askMode ? <HumanInTheLoop /> : <ToolRenderer />}
+                  {/* {interrupt ? <HumanInTheLoop /> : askMode ? <HumanInTheLoop /> : <ToolRenderer />} */}
+                  {/* { askMode ? <HumanInTheLoop /> : <ToolRenderer />} */}
+                  <HumanInTheLoop />
+                  <ToolRenderer/>
                   <A2AMessageRenderer />
               </div>
 
@@ -154,6 +163,9 @@ const PlaygroundPage = () => {
                     </div>
                   );
                 })}
+
+                {/* Render interrupt UI inline with messages */}
+                {interruptUI}
 
                 {agent?.isRunning && <LoadingSpinner />}
 

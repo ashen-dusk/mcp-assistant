@@ -58,6 +58,8 @@ async function handleCallback(request: NextRequest) {
   // Check if OAuth provider returned an error
   if (error) {
     const errorUrl = new URL(sourceUrl, getAppUrl());
+    if (serverName) errorUrl.searchParams.set('server', serverName);
+    if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
     errorUrl.searchParams.set('step', 'error');
     errorUrl.searchParams.set('error', errorDescription || error);
     return NextResponse.redirect(errorUrl);
@@ -65,6 +67,8 @@ async function handleCallback(request: NextRequest) {
 
   if (!code) {
     const errorUrl = new URL(sourceUrl, getAppUrl());
+    if (serverName) errorUrl.searchParams.set('server', serverName);
+    if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
     errorUrl.searchParams.set('step', 'error');
     errorUrl.searchParams.set('error', 'Authorization code is required');
     return NextResponse.redirect(errorUrl);
@@ -72,6 +76,8 @@ async function handleCallback(request: NextRequest) {
 
   if (!state || !sessionId) {
     const errorUrl = new URL(sourceUrl, getAppUrl());
+    if (serverName) errorUrl.searchParams.set('server', serverName);
+    if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
     errorUrl.searchParams.set('step', 'error');
     errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
     return NextResponse.redirect(errorUrl);
@@ -117,6 +123,9 @@ async function handleCallback(request: NextRequest) {
     if (serverName) {
       successUrl.searchParams.set('server', serverName);
     }
+    if (serverUrl) {
+      successUrl.searchParams.set('serverUrl', serverUrl);
+    }
     successUrl.searchParams.set('sessionId', sessionId);
     successUrl.searchParams.set('step', 'success');
 
@@ -124,6 +133,12 @@ async function handleCallback(request: NextRequest) {
   } catch (error: unknown) {
     // Handle any errors during OAuth completion
     const errorUrl = new URL(sourceUrl, getAppUrl());
+    if (serverName) {
+      errorUrl.searchParams.set('server', serverName);
+    }
+    if (serverUrl) {
+      errorUrl.searchParams.set('serverUrl', serverUrl);
+    }
     errorUrl.searchParams.set('step', 'error');
 
     if (error instanceof Error) {
