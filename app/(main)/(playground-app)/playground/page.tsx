@@ -6,6 +6,7 @@ import { useRef, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import MCPToolCall from '@/components/playground/MCPToolCall';
 import { ChatInput } from '@/components/playground/ChatInput';
+import { UserMessage, AssistantMessage } from '@/components/playground/ChatMessage';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/playground/LoadingSpinner';
 import { RecipeComponent } from '@/components/playground/RecipeComponent';
@@ -27,48 +28,109 @@ export default function PlaygroundPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Scrollable Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
-          {/* Only show messages here if they exist */}
-          {messages.map((m) => (
-            <div key={m.id} className={cn("group flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
-              {m.parts.map((part, index) => {
-                if (part.type === 'text') {
-                  return m.role === 'user' ? (
-                    <div key={index} className="max-w-[80%] bg-secondary px-4 py-2.5 rounded-[20px] text-sm">
-                      {part.text}
-                    </div>
-                  ) : (
-                    <div key={index} className="prose prose-sm dark:prose-invert max-w-full leading-7">
-                      {part.text}
-                    </div>
-                  );
-                }
-                if (part.type === 'step-start' && index > 0) return <Separator key={index} className="my-4" />;
-                if (isToolUIPart(part)) {
-                  const toolPart = part as ToolUIPart<any> | DynamicToolUIPart;
-                  return (
-                    <div key={index} className="w-full">
-                      <MCPToolCall
-                        name={toolPart.title || getToolName(toolPart)}
-                        state={toolPart.state}
-                        input={toolPart.input}
-                        output={toolPart.state === 'output-available' ? toolPart.output : undefined}
-                        errorText={toolPart.state === 'output-error' ? toolPart.errorText : undefined}
-                      />
-                    </div>
-                  );
-                }
-                return null;
-              })}
+      {!hasMessages ? (
+        /* Initial Empty State - Centered */
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div className="w-full max-w-3xl space-y-8">
+            {/* Welcome Message */}
+            <div className="text-center animate-in fade-in zoom-in-95 duration-1000">
+              <h1 className="text-5xl md:text-6xl font-serif tracking-tight text-foreground mb-12">
+                I'm here — let's talk it through
+              </h1>
             </div>
-          ))}
+
+            {/* Chat Input */}
+            <ChatInput
+              onSend={(data) => {
+                if (data.parts && data.parts.length > 0) {
+                  sendMessage({
+                    role: 'user',
+                    parts: data.parts,
+                  });
+                } else if (data.text) {
+                  sendMessage({ text: data.text });
+                }
+              }}
+              status={status}
+              disabled={status === 'submitted' || status === 'streaming'}
+            />
+
+            {/* Recipe badges */}
+            <div className="px-4">
+              <RecipeComponent
+                onAction={(prompt) => sendMessage({ text: prompt })}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Scrollable Messages Area */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+              {/* Messages */}
+              {messages.map((m) => {
+            return (
+              <div key={m.id} className={cn("group flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
+                {m.role === 'user' ? (
+                  <UserMessage
+                    message={{ text: m.parts.filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ') }}
+                    parts={m.parts.filter((p: any) => p.type === 'file')}
+                  />
+                ) : (
+                  <>
+                    {/* Render parts in sequence */}
+                    {m.parts.map((part: any, index: number) => {
+                      // Handle text parts
+                      if (part.type === 'text' && part.text) {
+                        return (
+                          <AssistantMessage
+                            key={index}
+                            text={part.text}
+                            parts={[]}
+                          />
+                        );
+                      }
+
+                      // Handle file parts
+                      if (part.type === 'file') {
+                        return (
+                          <AssistantMessage
+                            key={index}
+                            text=""
+                            parts={[part]}
+                          />
+                        );
+                      }
+
+                      // Handle tool calls
+                      if (isToolUIPart(part)) {
+                        const toolPart = part as ToolUIPart<any> | DynamicToolUIPart;
+                        return (
+                          <div key={index} className="w-full">
+                            <MCPToolCall
+                              name={toolPart.title || getToolName(toolPart)}
+                              state={toolPart.state}
+                              input={toolPart.input}
+                              output={toolPart.state === 'output-available' ? toolPart.output : undefined}
+                              errorText={toolPart.state === 'output-error' ? toolPart.errorText : undefined}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
+                  </>
+                )}
+              </div>
+            );
+          })}
 
           {/* Thinking State */}
           {(status === 'streaming' || status === 'submitted') && (
             <div className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="p-1"><LoadingSpinner/></div>
+              <div className="p-1"><LoadingSpinner /></div>
               <div className="prose prose-sm dark:prose-invert italic text-muted-foreground flex items-center h-8">
                 Thinking...
               </div>
@@ -83,37 +145,31 @@ export default function PlaygroundPage() {
               </Button>
             </div>
           )}
-          <div ref={messagesEndRef} className="h-4" />
-        </div>
-      </div>
-
-      {/* Input Area + Initial UI */}
-      <footer className={cn(
-        "flex flex-col items-center transition-all duration-500 pb-8",
-        !hasMessages ? "justify-center flex-1 pb-20" : "sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-10"
-      )}>
-        {!hasMessages && (
-          <div className="text-center mb-8 animate-in fade-in zoom-in-95 duration-1000">
-            <h1 className="text-5xl md:text-6xl font-serif tracking-tight text-foreground mb-12">
-              I'm here — let's talk it through
-            </h1>
+              <div ref={messagesEndRef} className="h-4" />
+            </div>
           </div>
-        )}
 
-        <div className="w-full max-w-3xl px-6">
-          <ChatInput
-            onSend={(text) => sendMessage({ text })}
-            status={status}
-            disabled={status === 'submitted' || status === 'streaming'}
-          />
-        </div>
-
-        {!hasMessages && (
-          <div className="w-full max-w-5xl px-6">
-            <RecipeComponent onAction={(prompt) => sendMessage({ text: prompt })} />
+          {/* Sticky Input Area */}
+          <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-10 pb-8">
+            <div className="w-full max-w-3xl mx-auto px-6">
+              <ChatInput
+                onSend={(data) => {
+                  if (data.parts && data.parts.length > 0) {
+                    sendMessage({
+                      role: 'user',
+                      parts: data.parts,
+                    });
+                  } else if (data.text) {
+                    sendMessage({ text: data.text });
+                  }
+                }}
+                status={status}
+                disabled={status === 'submitted' || status === 'streaming'}
+              />
+            </div>
           </div>
-        )}
-      </footer>
+        </>
+      )}
     </div>
   );
 }

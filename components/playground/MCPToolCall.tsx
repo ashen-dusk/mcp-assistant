@@ -122,7 +122,7 @@ function ToolIcon({ state }: { state: ToolState }) {
   switch (state) {
     case 'input-streaming':
     case 'input-available':
-      return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+      return <Loader2 className="w-4 h-4 animate-spin text-gray-500" />;
     case 'approval-requested':
       return <AlertCircle className="w-4 h-4 text-amber-500" />;
     case 'output-available':

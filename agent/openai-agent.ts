@@ -4,15 +4,17 @@ import { searchMcpServersTool } from '@/tool/search-mcp-servers';
 import { openai } from '@ai-sdk/openai';
 import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from 'ai';
 
-const INSTRUCTIONS = `You are MCP Assistant. Help users interact with Model Context Protocol (MCP) servers to help them with their tasks.
+const INSTRUCTIONS = `
+You are MCP Assistant. Help users interact with Model Context Protocol (MCP) servers to help them with their tasks.
+Always aim to complete the user's original request by connecting to MCP servers if needed.
 
-Workflow:
+Follow the below steps to assist users effectively:
 1. Check active connections first (checkMcpConnectionsTool)
 2. Search for servers if needed (searchMcpServersTool)
 3. Initiate connection if found (initiateMcpConnection - requires approval)
 4. Use connected server's tools to complete tasks
 
-Be transparent about actions. Explain errors clearly. Guide through OAuth when needed.`;
+Be transparent about actions. Explain errors clearly.`;
 
 export const mcpAgent = new ToolLoopAgent({
   model: openai('gpt-4o-mini'),

@@ -18,9 +18,7 @@ export const initiateMcpConnection = tool({
       // Get the base URL - use window.location in browser or construct from env
       const baseUrl = typeof window !== 'undefined'
         ? window.location.origin
-        : process.env.NEXT_PUBLIC_VERCEL_URL
-          ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-          : 'http://localhost:3000';
+        : process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000';
 
       const response = await fetch(`${baseUrl}/api/mcp/connect`, {
         method: 'POST',

@@ -2,37 +2,30 @@ import { UIToolInvocation, tool } from 'ai';
 import { z } from 'zod';
 import { SEARCH_MCP_SERVERS_QUERY } from '@/lib/graphql';
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const GRAPHQL_ENDPOINT = `${BACKEND_URL}/api/graphql`;
+
 export const searchMcpServersTool = tool({
   description: 'Search for MCP servers in the registry using filters',
   inputSchema: z.object({
     searchQuery: z.string().optional().describe('Search query to filter servers by name'),
     first: z.number().optional().default(10).describe('Number of results to return (default: 10)'),
     after: z.string().optional().describe('Cursor for pagination'),
-    categorySlug: z.string().optional().describe('Filter by category slug'),
   }),
-  async *execute({ searchQuery, first, after, categorySlug }) {
+  async *execute({ searchQuery, first, after }) {
     yield { state: 'loading' as const };
 
     try {
-      // Get the base URL - use window.location in browser or construct from env
-      const baseUrl = typeof window !== 'undefined'
-        ? window.location.origin
-        : process.env.NEXT_PUBLIC_VERCEL_URL
-          ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-          : 'http://localhost:3000';
-
       // Build filters object
+      // GraphQL expects filter fields to be objects with lookup operators
       const filters: any = {};
 
       if (searchQuery) {
-        filters.name = searchQuery;
+        filters.name = { iContains: searchQuery }; // Case-insensitive substring match
       }
 
-      if (categorySlug) {
-        filters.categorySlug = categorySlug;
-      }
-
-      const response = await fetch(`${baseUrl}/api/graphql`, {
+      // Call backend GraphQL endpoint directly (no auth required for search)
+      const response = await fetch(GRAPHQL_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

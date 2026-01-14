@@ -2,91 +2,93 @@ import React from "react";
 
 const RECIPE_DATA = [
   {
-    id: "gmail-draft",
-    title: "Create Email Draft",
-    description: "Create an email draft to my email address with subject \"Hi from...",
-    prompt: "Draft an email to me with the subject 'Hi from Smithery'",
-    icons: ["https://api.iconify.design/logos:google-gmail.svg"],
+    id: "create-a-bookmark",
+    title: "Create a Bookmark",
+    description: "Create a new bookmark in Bookmark Manager with title 'Study Tips' and description...",
+    prompt: "Create a new bookmark in Bookmark Manager titled 'Study Tips'",
+    icons: ["https://api.iconify.design/logos:vercel.svg"],
   },
   {
     id: "pricing-research",
     title: "Competitor Pricing Research",
-    description: "Research and document our",
-    prompt: "Research competitor pricing and create a summary in Notion.",
-    icons: ["https://api.iconify.design/logos:linear.svg", "https://api.iconify.design/logos:notion-icon.svg"],
+    description: "Research and document our competitors’ pricing.",
+    icons: [
+      "https://api.iconify.design/logos:linear.svg",
+      "https://api.iconify.design/logos:notion-icon.svg",
+    ],
   },
   {
-    id: "calendar-check",
-    title: "Next Week's Schedule",
-    description: "What's my busiest day next week and when do I have free time?",
-    prompt: "Look at my calendar for next week and tell me when I have focus time.",
+    id: "optimize-queries",
+    title: "Optimize Queries",
+    description: "Explore opportunities to add indexes and make my queries...",
+    icons: ["https://api.iconify.design/logos:supabase.svg"],
+  },
+  {
+    id: "email-draft",
+    title: "Create Email Draft",
+    description: "Create an email draft to my email address with subject 'Hi from...'",
+    icons: ["https://api.iconify.design/logos:google-gmail.svg"],
+  },
+  {
+    id: "schedule",
+    title: "Next Week’s Schedule",
+    description: "What’s my busiest day next week and when do I have free time?",
     icons: ["https://api.iconify.design/logos:google-calendar.svg"],
   },
   {
-    id: "create-bookmark",
-    title: "Create Bookmark",
-    description: "Helps user create a bookmark in Bookmark Manager...",
-    prompt: "Create a bookmark called StudyTips in my Bookmark Manager for easy access to study resources.",
-    icons: ["https://api.iconify.design/logos:vercel.svg"],
-  },
-  {
-    id: "db-optimize",
-    title: "Optimize Queries",
-    description: "Explore opportunities to add indexes and make my queries...",
-    prompt: "Analyze my database performance and suggest query optimizations.",
-    icons: ["https://api.iconify.design/logos:supabase.svg"], 
-  },
-  {
-    id: "prep-meeting",
+    id: "meeting-prep",
     title: "Meeting Preparation",
     description: "Prepare for my upcoming meeting by getting relevant issues from...",
-    prompt: "Help me prepare for my next meeting by summarizing recent Linear issues.",
-    icons: ["https://api.iconify.design/logos:linear.svg", "https://api.iconify.design/logos:notion-icon.svg"],
+    icons: [
+      "https://api.iconify.design/logos:linear.svg",
+      "https://api.iconify.design/logos:notion-icon.svg",
+    ],
   },
 ];
 
-interface RecipeComponentProps {
-  onAction: (prompt: string) => void;
+interface Props {
+  onAction: (text: string) => void;
 }
 
-export const RecipeComponent: React.FC<RecipeComponentProps> = ({ onAction }) => {
+export const RecipeComponent: React.FC<Props> = ({ onAction }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-4xl mx-auto">
-      {RECIPE_DATA.map((recipe) => (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 max-w-4xl mx-auto">
+      {RECIPE_DATA.map((item) => (
         <button
-          key={recipe.id}
-          onClick={() => onAction(recipe.prompt)}
-          className="group flex flex-col items-start p-5 text-left transition-all duration-200
-                     bg-[#181818] border border-white/10 rounded-xl
-                     hover:bg-[#202020] hover:border-white/20 active:scale-[0.98]"
+          key={item.id}
+          onClick={() => onAction(item.description)}
+          className="
+            group relative text-left
+            h-[96px]                   
+            rounded-lg border border-white/10
+            bg-zinc-900/70
+            px-4 py-3
+            flex flex-col justify-between
+            hover:bg-zinc-800/70 hover:border-white/20
+            transition-all
+          "
         >
-          {/* Header: Title and Icons */}
-          <div className="flex w-full items-start justify-between mb-3">
-            <h3 className="text-lg font-semibold text-zinc-200 leading-tight font-serif tracking-tight">
-              {recipe.title}
-            </h3>
-
-            {/* Icon Stack */}
-            <div className="flex -space-x-1 flex-shrink-0">
-              {recipe.icons.map((icon, idx) => (
-                <div
-                  key={idx}
-                  className="w-5 h-5 flex items-center justify-center overflow-hidden"
-                >
-                  {icon.startsWith('http') ? (
-                    <img src={icon} alt="app" className="w-full h-full object-contain filter grayscale group-hover:grayscale-0 transition-all" />
-                  ) : (
-                    <span className="text-sm">{icon}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+          {/* Icons */}
+          <div className="absolute top-3 right-3 flex gap-1">
+            {item.icons.map((icon, i) => (
+              <img
+                key={i}
+                src={icon}
+                className="w-4 h-4 opacity-70 group-hover:opacity-100"
+                alt=""
+              />
+            ))}
           </div>
 
-          {/* Description */}
-          <p className="text-[14px] leading-snug text-zinc-500 group-hover:text-zinc-400 line-clamp-2">
-            {recipe.description}
-          </p>
+          {/* Content */}
+          <div className="pr-10">
+            <h3 className="text-sm font-semibold text-white">
+              {item.title}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-400 leading-snug line-clamp-2">
+              {item.description}
+            </p>
+          </div>
         </button>
       ))}
     </div>

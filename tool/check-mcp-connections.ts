@@ -1,5 +1,7 @@
 import { UIToolInvocation, tool } from 'ai';
 import { z } from 'zod';
+import { GET } from '@/app/api/mcp/connections/route';
+import { NextRequest } from 'next/server';
 
 export const checkMcpConnectionsTool = tool({
   description: 'Check all active MCP server connections',
@@ -8,21 +10,19 @@ export const checkMcpConnectionsTool = tool({
     yield { state: 'loading' as const };
 
     try {
-      // Get the base URL - use window.location in browser or construct from env
-      const baseUrl = typeof window !== 'undefined'
-        ? window.location.origin
-        : process.env.NEXT_PUBLIC_VERCEL_URL
-          ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-          : 'http://localhost:3000';
+      console.log('[checkMcpConnectionsTool] Calling route handler directly');
 
-      const response = await fetch(`${baseUrl}/api/mcp/connections`, {
+      // Call the route handler directly - preserves server context and auth
+      const request = new NextRequest('http://localhost:3000/api/mcp/connections', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
+      const response = await GET(request);
+
+      console.log('[checkMcpConnectionsTool] Response status:', response.status);
+
       const data = await response.json();
+      console.log('[checkMcpConnectionsTool] Response data:', data);
 
       if (response.ok) {
         yield {
@@ -33,6 +33,10 @@ export const checkMcpConnectionsTool = tool({
           message: `Found ${data.count || 0} active MCP connection(s)`,
         };
       } else {
+        console.error('[checkMcpConnectionsTool] Error response:', {
+          status: response.status,
+          data,
+        });
         yield {
           state: 'ready' as const,
           success: false,
@@ -41,6 +45,11 @@ export const checkMcpConnectionsTool = tool({
         };
       }
     } catch (error) {
+      console.error('[checkMcpConnectionsTool] Exception caught:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       yield {
         state: 'ready' as const,
         success: false,
