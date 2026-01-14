@@ -113,7 +113,7 @@ export default function PlaygroundPage() {
                             console.log(`toolPart ---> : ${JSON.stringify(toolPart)}`)
 
                             // Handle MCP connection tool - all states
-                            if (toolName === 'MCP_ASSISTANT_INITIATE_CONNECTION') {
+                            if (toolName === 'MCPASSISTANT_INITIATE_CONNECTION') {
                               const input = toolPart.input as any;
 
                               // Only show approval UI for approval-requested state
