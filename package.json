@@ -9,12 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.42",
     "@ai-sdk/openai": "^3.0.9",
     "@ai-sdk/react": "^3.0.35",
     "@apollo/client": "^4.0.8",
     "@hookform/resolvers": "^5.2.1",
-    "@langchain/langgraph-sdk": "^1.4.6",
     "@modelcontextprotocol/sdk": "^1.23.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

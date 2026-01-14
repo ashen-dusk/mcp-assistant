@@ -12,9 +12,9 @@ interface SettingsNavItem {
 
 const navItems: SettingsNavItem[] = [
   { label: "Account", href: "/settings", icon: User },
-  { label: "Assistants", href: "/settings/assistants", icon: Bot },
   { label: "Connectors", href: "/settings/connectors", icon: Server },
-  { label: "A2A Agents", href: "/settings/agents", icon: Network },
+  { label: "Assistants", href: "/settings/assistants", icon: Bot },
+  // { label: "A2A Agents", href: "/settings/agents", icon: Network },
 ];
 
 export default function SettingsLayout({

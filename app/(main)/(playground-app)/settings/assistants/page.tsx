@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Clock, CheckCircle2, Star } from "lucide-react";
+import { Bot, Clock, CheckCircle2, Star, Calendar, Cpu } from "lucide-react";
 import { useAssistants } from "@/hooks/useAssistants";
 
 export default function AssistantsPage() {
@@ -48,7 +48,7 @@ export default function AssistantsPage() {
             {assistants.map((assistant) => (
               <div
                 key={assistant.id}
-                className="flex items-start gap-3 p-3 hover:bg-muted/30 transition-colors rounded-md"
+                className="flex items-start gap-3 p-3 rounded-md w-fit"
               >
                 {/* Assistant Icon */}
                 <div className="flex-shrink-0">
@@ -78,13 +78,15 @@ export default function AssistantsPage() {
                   </p>
                   <div className="space-y-0.5 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
+                      <Cpu className="w-3 h-3 text-muted-foreground/70" />
                       <span className="text-muted-foreground/70">Model:</span>
                       <span className="font-mono text-[11px]">
                         {assistant.config?.llm_name || assistant.config?.llm_provider || "Default"}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground/70">Created:</span>
+                      <Calendar className="w-3 h-3 text-muted-foreground/70" />
+                      <span className="text-muted-foreground/70">Created At:</span>
                       <span>{new Date(assistant.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>

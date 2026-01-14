@@ -211,7 +211,7 @@ export const PlaygroundSidebar = () => {
                           className="rounded-full flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 text-primary-foreground font-semibold text-sm">
+                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-semibold text-sm">
                           {userName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -221,8 +221,8 @@ export const PlaygroundSidebar = () => {
                 <TooltipContent side="right" sideOffset={8}>
                   Profile
                 </TooltipContent>
-                <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56 mb-2">
-                  <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-fit min-w-[120px] mb-2">
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log Out</span>
                   </DropdownMenuItem>
@@ -244,7 +244,7 @@ export const PlaygroundSidebar = () => {
                       className="rounded-full flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0 text-primary-foreground font-semibold">
+                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-semibold">
                       {userName.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -259,8 +259,8 @@ export const PlaygroundSidebar = () => {
                   <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56 mb-2">
-                <DropdownMenuItem onClick={handleSignOut}>
+              <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-fit min-w-[120px] mb-2">
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log Out</span>
                 </DropdownMenuItem>

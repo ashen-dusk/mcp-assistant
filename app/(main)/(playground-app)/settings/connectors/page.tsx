@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Trash2, Calendar } from "lucide-react";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import { toast } from "react-hot-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Connection {
   sessionId: string;
@@ -117,30 +123,31 @@ export default function ConnectorsPage() {
 
   return (
     <div className="pl-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold mb-1">Connectors</h1>
-          <p className="text-sm text-muted-foreground">
-            Active MCP server connections
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold mb-1">Connectors</h1>
+        <p className="text-sm text-muted-foreground">
+          Active MCP server connections
+        </p>
+      </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="flex flex-col items-center gap-3">
-              <Clock className="w-8 h-8 text-muted-foreground animate-spin" />
-              <p className="text-sm text-muted-foreground">Loading connections...</p>
-            </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <Clock className="w-8 h-8 text-muted-foreground animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading connections...</p>
           </div>
-        ) : connections.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No active connections found</p>
-          </div>
-        ) : (
+        </div>
+      ) : connections.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No active connections found</p>
+        </div>
+      ) : (
+        <TooltipProvider>
           <div className="space-y-2">
             {connections.map((conn) => (
               <div
                 key={conn.sessionId}
-                className="flex items-start gap-3 p-3 hover:bg-muted/30 transition-colors rounded-md"
+                className="flex items-start gap-3 p-3 rounded-md w-fit"
               >
                 {/* Server Icon */}
                 <div className="flex-shrink-0">
@@ -162,12 +169,25 @@ export default function ConnectorsPage() {
                   </p>
                   <div className="space-y-0.5 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground/70">Session:</span>
+                      <span className="text-muted-foreground/70">Session ID:</span>
                       <code className="font-mono text-[11px]">{conn.sessionId}</code>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground/70">Connected:</span>
-                      <span>{new Date(conn.createdAt).toLocaleDateString()}</span>
+                      <Calendar className="w-3 h-3 text-muted-foreground/70" />
+                      <span className="text-muted-foreground/70">Connected At:</span>
+                      <span>
+                        {new Date(conn.createdAt).toLocaleString('en-IN', {
+                          timeZone: 'Asia/Kolkata',
+                          year: 'numeric',
+                          month: 'short',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false,
+                        })}
+                      </span>
+
                     </div>
                   </div>
                 </div>
@@ -178,23 +198,30 @@ export default function ConnectorsPage() {
                   <span className={`text-xs font-medium ${getStatusColor(conn.connectionStatus)}`}>
                     {conn.connectionStatus}
                   </span>
-                  <button
-                    onClick={() => handleDisconnect(conn.sessionId)}
-                    disabled={disconnecting === conn.sessionId}
-                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Disconnect"
-                  >
-                    {disconnecting === conn.sessionId ? (
-                      <Clock className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleDisconnect(conn.sessionId)}
+                        disabled={disconnecting === conn.sessionId}
+                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {disconnecting === conn.sessionId ? (
+                          <Clock className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Disconnect</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             ))}
           </div>
-        )}
+        </TooltipProvider>
+      )}
     </div>
   );
 }
