@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-
+import { GET } from '@/app/api/mcp/connections/route';
+import { NextRequest } from 'next/server';
 
 export const initiateMcpConnection = tool({
   description: 'Initiate an MCP connection to a specified server',
@@ -8,57 +9,60 @@ export const initiateMcpConnection = tool({
     serverName: z.string().describe('Name of the MCP server'),
     serverUrl: z.string().describe('URL of the MCP server'),
     serverId: z.string().describe('Unique identifier for the server'),
-    callbackUrl: z.string().optional().describe('OAuth callback URL'),
-    sourceUrl: z.string().optional().describe('Source URL to redirect after auth'),
     transportType: z.enum(['sse', 'streamable_http']).describe('Transport type for MCP connection'),
   }),
   needsApproval: true, // Require user approval
-  execute: async ({ serverName, serverUrl, serverId, callbackUrl, sourceUrl, transportType }) => {
+  execute: async ({ serverName, serverUrl, serverId, transportType }) => {
     try {
-      // Get the base URL - use window.location in browser or construct from env
-      const baseUrl = typeof window !== 'undefined'
-        ? window.location.origin
-        : process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000';
+      console.log('[initiateMcpConnection] Tool approved, verifying connection');
 
-      const response = await fetch(`${baseUrl}/api/mcp/connect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          serverName,
-          serverUrl,
-          serverId,
-          callbackUrl: callbackUrl || `${baseUrl}/api/mcp/auth/callback`,
-          sourceUrl: sourceUrl || `${baseUrl}/auth/callback/success`,
-          transportType,
-        }),
+      // The approval UI already handled the connection and OAuth
+      // Just verify the connection exists by checking active connections
+      const request = new NextRequest('http://localhost:3000/api/mcp/connections', {
+        method: 'GET',
       });
 
-      const data = await response.json();
+      const response = await GET(request);
+      console.log('[initiateMcpConnection] Connections check status:', response.status);
 
-      if (response.ok && data.success) {
-        return {
-          success: true,
-          sessionId: data.sessionId,
-          message: `Successfully connected to ${serverName}`,
-        };
-      } else if (response.status === 401 && data.requiresAuth) {
-        return {
-          success: false,
-          requiresAuth: true,
-          authUrl: data.authUrl,
-          sessionId: data.sessionId,
-          message: `OAuth authorization required. Please visit: ${data.authUrl}`,
-        };
+      const data = await response.json();
+      console.log('[initiateMcpConnection] Connections data:', data);
+
+      if (response.ok && data.connections) {
+        // Find connection for this server
+        const connection = data.connections.find(
+          (conn: any) => conn.serverUrl === serverUrl
+        );
+
+        if (connection && connection.active) {
+          console.log('[initiateMcpConnection] Connection verified');
+          return {
+            success: true,
+            sessionId: connection.sessionId,
+            message: `Successfully connected to ${serverName}`,
+          };
+        } else {
+          console.warn('[initiateMcpConnection] Connection not found or inactive');
+          return {
+            success: false,
+            error: 'Connection not found',
+            message: `Connection to ${serverName} was not established. Please try again.`,
+          };
+        }
       } else {
+        console.error('[initiateMcpConnection] Failed to verify connections:', data);
         return {
           success: false,
-          error: data.error || 'Connection failed',
-          message: `Failed to connect to ${serverName}: ${data.error || 'Unknown error'}`,
+          error: data.error || 'Failed to verify connection',
+          message: `Failed to verify connection to ${serverName}`,
         };
       }
     } catch (error) {
+      console.error('[initiateMcpConnection] Exception caught:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

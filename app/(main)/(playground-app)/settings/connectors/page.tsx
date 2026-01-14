@@ -49,7 +49,7 @@ export default function ConnectorsPage() {
   const handleDisconnect = async (sessionId: string) => {
     setDisconnecting(sessionId);
     try {
-      const response = await fetch(`/api/mcp/auth/disconnect`, {
+      const response = await fetch(`/api/mcp/disconnect`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -188,7 +188,7 @@ export default function MCPToolCall({
             transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
           >
             <div className="px-4 pb-4 space-y-4 border-t border-zinc-100 dark:border-zinc-900 pt-4">
-              {(isRunning || state === 'approval-requested') && input && (
+              {input && (
                 <CodeBlock label="Request Parameters" content={formatContent(input)} />
               )}
 

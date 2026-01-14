@@ -15,7 +15,7 @@ interface ConnectRequestBody {
 }
 
 /**
- * POST /api/mcp/auth/connect
+ * POST /api/mcp/connect
  *
  * Initiate connection to an MCP server with OAuth authentication
  *

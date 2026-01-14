@@ -131,7 +131,7 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
     try {
       const sourceUrl = window.location.pathname;
 
-      const response = await fetch("/api/mcp/auth/connect", {
+      const response = await fetch("/api/mcp/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -198,7 +198,7 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
     }
 
     try {
-      const response = await fetch("/api/mcp/auth/disconnect", {
+      const response = await fetch("/api/mcp/disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: connection.sessionId }),

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Call disconnect API
-      const disconnectResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/mcp/auth/disconnect`, {
+      const disconnectResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/mcp/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

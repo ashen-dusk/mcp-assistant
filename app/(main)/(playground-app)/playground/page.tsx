@@ -5,6 +5,7 @@ import { DefaultChatTransport, getToolName, type ToolUIPart, type DynamicToolUIP
 import { useRef, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import MCPToolCall from '@/components/playground/MCPToolCall';
+import { MCPConnectionApproval } from '@/components/playground/MCPConnectionApproval';
 import { ChatInput } from '@/components/playground/ChatInput';
 import { UserMessage, AssistantMessage } from '@/components/playground/ChatMessage';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ import { RefreshCw } from 'lucide-react';
 export default function PlaygroundPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { error, status, sendMessage, messages } = useChat({
+  const { error, status, sendMessage, messages, addToolApprovalResponse } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat' }),
   });
 
@@ -67,7 +68,7 @@ export default function PlaygroundPage() {
         <>
           {/* Scrollable Messages Area */}
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+            <div className="max-w-2xl mx-auto px-2 py-8 space-y-8">
               {/* Messages */}
               {messages.map((m) => {
             return (
@@ -106,10 +107,45 @@ export default function PlaygroundPage() {
                       // Handle tool calls
                       if (isToolUIPart(part)) {
                         const toolPart = part as ToolUIPart<any> | DynamicToolUIPart;
+                        const toolName = getToolName(toolPart);
+
+                        // Handle MCP connection approval
+                        if (toolName === 'initiateMcpConnection' && toolPart.state === 'approval-requested') {
+                          const input = toolPart.input as any;
+                          return (
+                            <div key={index} className="w-full">
+                              <MCPConnectionApproval
+                                serverName={input.serverName || ''}
+                                serverUrl={input.serverUrl || ''}
+                                serverId={input.serverId || ''}
+                                transportType={input.transportType || 'sse'}
+                                approvalId={(toolPart as any).approval?.id || ''}
+                                onApprove={(data) => {
+                                  if (addToolApprovalResponse) {
+                                    addToolApprovalResponse({
+                                      id: (toolPart as any).approval?.id,
+                                      approved: true,
+                                    });
+                                  }
+                                }}
+                                onDeny={() => {
+                                  if (addToolApprovalResponse) {
+                                    addToolApprovalResponse({
+                                      id: (toolPart as any).approval?.id,
+                                      approved: false,
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                          );
+                        }
+
+                        // Regular tool call display
                         return (
                           <div key={index} className="w-full">
                             <MCPToolCall
-                              name={toolPart.title || getToolName(toolPart)}
+                              name={toolPart.title || toolName}
                               state={toolPart.state}
                               input={toolPart.input}
                               output={toolPart.state === 'output-available' ? toolPart.output : undefined}
