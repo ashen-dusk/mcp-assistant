@@ -7,7 +7,6 @@ import McpClientLayout from "@/components/mcp-client/McpClientLayout";
 import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
 import { McpServer, ToolInfo } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
-import { useMcpServersPagination } from "@/hooks/useMcpServersPagination";
 import { ConnectionProvider } from "@/components/providers/ConnectionProvider";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
@@ -38,17 +37,68 @@ function McpPageContent() {
   // Use connection persistence hook for connect/disconnect operations
   const { connect, disconnect, mergeWithStoredState } = useMcpConnection();
 
-  // Use GraphQL pagination hook for public servers
-  const {
-    servers: publicServers,
-    loading: publicLoading,
-    error: publicError,
-    hasNextPage,
-    isLoadingMore,
-    totalCount: publicServersCount,
-    loadMore: loadMorePublicServers,
-    refetch: refetchPublicServers,
-  } = useMcpServersPagination(10);
+  // Public servers pagination state
+  const [publicServers, setPublicServers] = useState<McpServer[]>([]);
+  const [publicLoading, setPublicLoading] = useState(true);
+  const [publicError, setPublicError] = useState<string | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [publicServersCount, setPublicServersCount] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const limit = 10;
+
+  // Fetch public servers
+  const fetchPublicServers = useCallback(async (currentOffset: number = 0, append: boolean = false) => {
+    try {
+      if (!append) setPublicLoading(true);
+      else setIsLoadingMore(true);
+      setPublicError(null);
+
+      const response = await fetch(`/api/mcp?limit=${limit}&offset=${currentOffset}&orderBy=-created_at`);
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to fetch servers');
+      }
+
+      const edges = result.data?.mcpServers?.edges || [];
+      const servers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
+      const pageInfo = result.data?.mcpServers?.pageInfo;
+
+      if (append) {
+        setPublicServers(prev => [...prev, ...servers]);
+      } else {
+        setPublicServers(servers);
+      }
+
+      setHasNextPage(pageInfo?.hasNextPage || false);
+      setPublicServersCount(pageInfo?.totalCount || 0);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch servers';
+      setPublicError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setPublicLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, []);
+
+  const loadMorePublicServers = useCallback(async () => {
+    if (!hasNextPage || isLoadingMore) return;
+    const newOffset = offset + limit;
+    setOffset(newOffset);
+    await fetchPublicServers(newOffset, true);
+  }, [hasNextPage, isLoadingMore, offset, fetchPublicServers]);
+
+  const refetchPublicServers = useCallback(async () => {
+    setOffset(0);
+    await fetchPublicServers(0, false);
+  }, [fetchPublicServers]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchPublicServers(0, false);
+  }, [fetchPublicServers]);
 
   const fetchUserServers = useCallback(async () => {
     if (!session) return;
@@ -98,7 +148,7 @@ function McpPageContent() {
   };
 
   const handleServerAdd = async (data: Record<string, unknown>) => {
-    const response = await fetch('/api/mcp/servers', {
+    const response = await fetch('/api/mcp', {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -119,8 +169,8 @@ function McpPageContent() {
   };
 
   const handleServerUpdate = async (data: Record<string, unknown>) => {
-    const response = await fetch('/api/mcp/servers', {
-      method: "POST",
+    const response = await fetch(`/api/mcp?name=${encodeURIComponent(data.name as string)}`, {
+      method: "PATCH",
       headers: {
         "content-type": "application/json",
       },
@@ -140,7 +190,7 @@ function McpPageContent() {
   };
 
   const handleServerDelete = async (serverName: string) => {
-    const response = await fetch(`/api/mcp/servers?name=${encodeURIComponent(serverName)}`, {
+    const response = await fetch(`/api/mcp?name=${encodeURIComponent(serverName)}`, {
       method: "DELETE",
     });
 

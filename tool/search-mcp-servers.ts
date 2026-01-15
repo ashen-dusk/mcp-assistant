@@ -1,43 +1,32 @@
 import { UIToolInvocation, tool } from 'ai';
 import { z } from 'zod';
-import { SEARCH_MCP_SERVERS_QUERY } from '@/lib/graphql';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
-const GRAPHQL_ENDPOINT = `${BACKEND_URL}/api/graphql`;
 
 export const searchMcpServers = tool({
   description: 'Search for MCP servers in the registry using filters',
   inputSchema: z.object({
     searchQuery: z.string().optional().describe('Search query to filter servers by name'),
-    first: z.number().optional().default(10).describe('Number of results to return (default: 10)'),
-    after: z.string().optional().describe('Cursor for pagination'),
+    limit: z.number().optional().default(10).describe('Number of results to return (default: 10)'),
+    offset: z.number().optional().default(0).describe('Offset for pagination (default: 0)'),
   }),
-  async *execute({ searchQuery, first, after }) {
+  async *execute({ searchQuery, limit, offset }) {
     yield { state: 'loading' as const };
 
     try {
-      // Build filters object
-      // GraphQL expects filter fields to be objects with lookup operators
-      const filters: any = {};
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('limit', (limit || 10).toString());
+      params.append('offset', (offset || 0).toString());
 
       if (searchQuery) {
-        filters.name = { iContains: searchQuery }; // Case-insensitive substring match
+        params.append('search', searchQuery);
       }
 
-      // Call backend GraphQL endpoint directly (no auth required for search)
-      const response = await fetch(GRAPHQL_ENDPOINT, {
-        method: 'POST',
+      // Call our Next.js API endpoint
+      const response = await fetch(`/api/mcp?${params.toString()}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          query: SEARCH_MCP_SERVERS_QUERY,
-          variables: {
-            first: first || 10,
-            after: after || null,
-            filters: Object.keys(filters).length > 0 ? filters : null,
-          },
-        }),
       });
 
       const data = await response.json();
@@ -51,16 +40,16 @@ export const searchMcpServers = tool({
           success: true,
           servers,
           count: servers.length,
+          totalCount: pageInfo.totalCount,
           hasNextPage: pageInfo.hasNextPage,
-          endCursor: pageInfo.endCursor,
-          message: `Found ${servers.length} MCP server(s)${searchQuery ? ` matching "${searchQuery}"` : ''}`,
+          message: `Found ${pageInfo.totalCount} MCP server(s)${searchQuery ? ` matching "${searchQuery}"` : ''}`,
         };
-      } else if (data.errors) {
+      } else if (data.error) {
         yield {
           state: 'ready' as const,
           success: false,
-          error: data.errors[0]?.message || 'GraphQL error',
-          message: `Error: ${data.errors[0]?.message || 'GraphQL error'}`,
+          error: data.error,
+          message: `Error: ${data.error}`,
         };
       } else {
         yield {

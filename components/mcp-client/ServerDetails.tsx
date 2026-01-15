@@ -77,7 +77,9 @@ export function ServerDetails({
               onEdit={
                 !(
                   server.isPublic &&
-                  server.owner !== session?.user?.email?.split("@")[0]
+                  (typeof server.owner === 'string'
+                    ? server.owner !== session?.user?.email?.split("@")[0]
+                    : server.owner?.email !== session?.user?.email)
                 )
                   ? onEdit
                   : undefined
@@ -85,7 +87,9 @@ export function ServerDetails({
               onDelete={
                 !(
                   server.isPublic &&
-                  server.owner !== session?.user?.email?.split("@")[0]
+                  (typeof server.owner === 'string'
+                    ? server.owner !== session?.user?.email?.split("@")[0]
+                    : server.owner?.email !== session?.user?.email)
                 )
                   ? onDelete
                   : undefined
@@ -235,7 +239,11 @@ export function ServerDetails({
                 <div className="flex items-center gap-2 text-xs">
                   <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="font-medium">By:</span>
-                  <span className="text-muted-foreground">{server.owner}</span>
+                  <span className="text-muted-foreground">
+                    {typeof server.owner === 'string'
+                      ? server.owner
+                      : server.owner.username || server.owner.email?.split("@")[0] || 'Unknown'}
+                  </span>
                 </div>
               )}
               {server.isPublic !== undefined && (

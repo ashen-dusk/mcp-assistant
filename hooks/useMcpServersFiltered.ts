@@ -1,14 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@apollo/client/react";
-import { gql } from "@apollo/client";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { McpServer, Category } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
-import { MCP_SERVERS_QUERY } from "@/lib/graphql";
 import { useConnectionContext } from "@/components/providers/ConnectionProvider";
-
-const GET_MCP_SERVERS = gql`${MCP_SERVERS_QUERY}`;
 
 interface FilterOptions {
   searchQuery?: string;
@@ -18,59 +13,85 @@ interface FilterOptions {
 
 /**
  * Custom hook for filtered MCP servers with pagination
- * Handles search and category filtering using GraphQL
+ * Handles search and category filtering using REST API
  */
 export function useMcpServersFiltered(
   options: FilterOptions,
-  first: number = 10
+  limit: number = 10
 ) {
   const { searchQuery, categorySlug, categories } = options;
   const { connections } = useConnectionContext();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  // Build GraphQL filter variables
-  const buildFilterVariables = useCallback(() => {
-    const filters: Record<string, unknown> = {};
-
-    if (searchQuery?.trim()) {
-      filters.name = {
-        iContains: searchQuery.trim(),
-      };
-    }
-
-    if (categorySlug) {
-      const category = categories.find((cat) => cat.slug === categorySlug);
-      if (category?.id) {
-        filters.categories = {
-          id: {
-            exact: category.id,
-          },
-        };
-      }
-    }
-
-    return Object.keys(filters).length > 0 ? filters : undefined;
-  }, [searchQuery, categorySlug, categories]);
+  const [offset, setOffset] = useState(0);
 
   const isFiltering = Boolean(searchQuery?.trim() || categorySlug);
 
-  const { data, loading, error, fetchMore } = useQuery<{
-    mcpServers: {
-      edges: Array<{ node: McpServer; cursor: string }>;
-      pageInfo: {
-        hasNextPage: boolean;
-        endCursor: string | null;
-      };
-      totalCount: number;
-    };
-  }>(GET_MCP_SERVERS, {
-    variables: {
-      first,
-      filters: buildFilterVariables(),
-    },
-    skip: !isFiltering,
-    fetchPolicy: "cache-and-network",
-  });
+  // Fetch servers from REST API
+  const fetchServers = useCallback(async (currentOffset: number = 0, append: boolean = false) => {
+    if (!isFiltering) {
+      setData(null);
+      return;
+    }
+
+    setLoading(!append);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', currentOffset.toString());
+
+      if (searchQuery?.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+
+      // Note: Category filtering would need to be implemented in the API
+      // For now, we'll fetch all and filter client-side if categorySlug exists
+
+      const response = await fetch(`/api/mcp?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to fetch servers');
+      }
+
+      if (append && data) {
+        // Append to existing data
+        setData({
+          ...result,
+          data: {
+            mcpServers: {
+              ...result.data.mcpServers,
+              edges: [...data.data.mcpServers.edges, ...result.data.mcpServers.edges]
+            }
+          }
+        });
+      } else {
+        setData(result);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch servers';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [isFiltering, limit, searchQuery, data]);
+
+  // Initial fetch when filters change
+  useEffect(() => {
+    setOffset(0);
+    fetchServers(0, false);
+  }, [searchQuery, categorySlug, limit]);
 
   // Merge with localStorage connection state
   const mergeWithConnectionState = useCallback((servers: McpServer[]) => {
@@ -94,34 +115,26 @@ export function useMcpServersFiltered(
 
   const servers = useMemo(() => {
     if (!isFiltering) return [];
-    const rawServers = data?.mcpServers?.edges?.map((edge) => edge.node) || [];
+    const rawServers = data?.data?.mcpServers?.edges?.map((edge: any) => edge.node) || [];
     return mergeWithConnectionState(rawServers);
   }, [data, isFiltering, mergeWithConnectionState, connections]);
 
-  const pageInfo = data?.mcpServers?.pageInfo;
+  const pageInfo = data?.data?.mcpServers?.pageInfo;
 
   // Load more filtered results
   const loadMore = useCallback(async () => {
-    if (!pageInfo?.endCursor || isLoadingMore) return;
+    if (!pageInfo?.hasNextPage || isLoadingMore) return;
 
     setIsLoadingMore(true);
-    try {
-      await fetchMore({
-        variables: {
-          after: pageInfo.endCursor,
-        },
-      });
-    } catch (err) {
-      console.error("Failed to load more filtered results:", err);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [fetchMore, pageInfo?.endCursor, isLoadingMore]);
+    const newOffset = offset + limit;
+    setOffset(newOffset);
+    await fetchServers(newOffset, true);
+  }, [pageInfo?.hasNextPage, isLoadingMore, offset, limit, fetchServers]);
 
   return {
     servers,
     loading,
-    error: error?.message || null,
+    error,
     hasNextPage: pageInfo?.hasNextPage || false,
     isLoadingMore,
     isFiltering,

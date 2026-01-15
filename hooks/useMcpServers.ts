@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { McpServer } from "@/types/mcp";
-import { MCP_SERVERS_QUERY } from "@/lib/graphql";
 
 interface McpServersData {
   servers: McpServer[] | null;
@@ -21,29 +20,23 @@ export function useMcpServers(): McpServersData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch servers from GraphQL API
+  // Fetch servers from REST API
   const fetchServers = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/graphql', {
-        method: 'POST',
+      const response = await fetch('/api/mcp?limit=100', {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          query: MCP_SERVERS_QUERY,
-          variables: {
-            first: 100, // Get first 100 servers
-          }
-        }),
       });
 
       const result = await response.json();
 
-      if (!response.ok || result.errors) {
-        throw new Error(result.errors?.[0]?.message || 'Failed to fetch servers');
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to fetch servers');
       }
 
       // Extract nodes from edges structure
@@ -139,7 +132,7 @@ export function useMcpServers(): McpServersData {
 
   // Handle server CRUD operations
   const handleServerAdd = useCallback(async (data: any) => {
-    const response = await fetch('/api/mcp/servers', {
+    const response = await fetch('/api/mcp', {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -157,8 +150,8 @@ export function useMcpServers(): McpServersData {
   }, [fetchServers]);
 
   const handleServerUpdate = useCallback(async (data: any) => {
-    const response = await fetch('/api/mcp/servers', {
-      method: "POST",
+    const response = await fetch(`/api/mcp?name=${encodeURIComponent(data.name)}`, {
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
@@ -175,7 +168,7 @@ export function useMcpServers(): McpServersData {
   }, [fetchServers]);
 
   const handleServerDelete = useCallback(async (serverName: string) => {
-    const response = await fetch(`/api/mcp/servers?name=${encodeURIComponent(serverName)}`, {
+    const response = await fetch(`/api/mcp?name=${encodeURIComponent(serverName)}`, {
       method: "DELETE",
     });
 

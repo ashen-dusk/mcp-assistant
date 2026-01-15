@@ -1,0 +1,89 @@
+// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// user schema
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  USER
+}
+
+model User {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  username  String?  @unique
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  avatarUrl String?  @map("avatar_url")
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  servers   McpServer[]
+
+  @@map("users")
+}
+
+// category schema
+
+model Category {
+  id          String   @id @db.VarChar(30)
+  name        String   @unique @db.VarChar(255)
+  description String?
+  icon        String?
+  color       String?
+  slug        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  servers     McpServerCategory[]
+
+  @@map("categories")
+}
+
+// mcpserver schema
+
+model McpServer {
+  id             String   @id @db.VarChar(30)
+  name           String   @db.VarChar(255)
+  transport      String   @db.VarChar(50)
+  url            String?
+  description    String?
+  requiresOauth2 Boolean  @default(false) @map("requires_oauth2")
+  isPublic       Boolean  @default(false) @map("is_public")
+  isFeatured     Boolean  @default(false) @map("is_featured")
+  ownerId        String?  @map("owner_id") @db.Uuid
+  iconUrl        String?  @map("icon_url")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  owner          User?              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categories     McpServerCategory[]
+
+  @@unique([name, ownerId])
+  @@map("mcp_servers")
+}
+
+model McpServerCategory {
+  id         String   @id @db.VarChar(30)
+  serverId   String   @map("server_id")
+  categoryId String   @map("category_id")
+
+  server     McpServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, categoryId])
+  @@map("mcp_server_categories")
+}
+

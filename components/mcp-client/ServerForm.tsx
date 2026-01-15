@@ -34,12 +34,7 @@ import { McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
 import { Session } from "@supabase/supabase-js";
 import Link from "next/link";
-import { useQuery } from "@apollo/client/react";
-import { CATEGORIES_QUERY } from "@/lib/graphql";
 import { Category } from "@/types/mcp";
-import { gql } from "@apollo/client";
-
-const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
 
 const serverSchema = z.object({
     name: z.string().min(1, "Server name is required"),
@@ -78,13 +73,33 @@ export default function ServerForm({
     const [transportType, setTransportType] = useState<"sse" | "streamable_http">("streamable_http");
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
-    const { loading, error, data } = useQuery<{
-        categories: {
-            edges: Array<{ node: Category }>;
+    // Fetch categories from REST API
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch('/api/categories?limit=50');
+                const result = await response.json();
+
+                if (!response.ok || result.error) {
+                    throw new Error(result.error || 'Failed to fetch categories');
+                }
+
+                const edges = result.data?.categories?.edges || [];
+                const cats: Category[] = edges.map((edge: { node: Category }) => edge.node);
+                setCategories(cats);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to fetch categories');
+            } finally {
+                setLoading(false);
+            }
         };
-    }>(GET_CATEGORIES, {
-        fetchPolicy: "cache-and-network",
-    });
+        fetchCategories();
+    }, []);
 
     const {
         register,
@@ -336,9 +351,9 @@ export default function ServerForm({
                                             <div className="flex items-center gap-1.5 truncate">
                                                 {selectedCategoryIds.length > 0 ? (
                                                     selectedCategoryIds.map((id) => {
-                                                        const category = data?.categories?.edges.find(
-                                                            ({ node }) => node.id === id
-                                                        )?.node;
+                                                        const category = categories.find(
+                                                            (cat) => cat.id === id
+                                                        );
                                                         if (!category) return null;
                                                         return (
                                                             <div key={id} className="flex items-center gap-1 bg-secondary px-2 py-0.5 rounded">
@@ -366,7 +381,7 @@ export default function ServerForm({
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent className="w-[300px]" align="start">
-                                        {data?.categories?.edges.map(({ node }) => (
+                                        {categories.map((node) => (
                                             <DropdownMenuCheckboxItem
                                                 key={node.id}
                                                 checked={selectedCategoryIds.includes(node.id)}

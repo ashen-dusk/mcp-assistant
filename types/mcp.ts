@@ -17,13 +17,21 @@ export type Category = {
   updatedAt: string;
 };
 
+export type User = {
+  id: string;
+  username?: string | null;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+};
+
 export type McpServer = {
   id: string;
   name: string;
   description?: string | null;
   categories?: Category[] | null;
   transport: string;
-  owner?: string | null;
+  owner?: string | User | null;
   url?: string | null;
   command?: string | null;
   args?: any | null;
@@ -69,13 +77,6 @@ export type Assistant = {
   config: any;
   createdAt: string;
   updatedAt: string;
-};
-
-// A2A Agent Config (stored in Assistant.config for specialist/tool_agent types)
-export type A2AAgentConfig = {
-  a2a_url: string;
-  skills?: string[];
-  agent_card?: any; // Full agent card from A2A validation (presence indicates validation)
 };
 
 // MCP Config format for MultiServerMCPClient (client-side, no credentials)

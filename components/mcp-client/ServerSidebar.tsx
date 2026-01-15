@@ -26,14 +26,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useQuery } from "@apollo/client/react";
-import { gql } from "@apollo/client";
 import { McpServer, Category } from "@/types/mcp";
 import { ServerListItem } from "./ServerListItem";
 import { ServerPlaceholder } from "./ServerPlaceholder";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useMcpServersFiltered } from "@/hooks/useMcpServersFiltered";
-import { CATEGORIES_QUERY } from "@/lib/graphql";
 import { Session } from "@supabase/supabase-js";
 
 interface ServerSidebarProps {
@@ -61,8 +58,6 @@ interface ServerSidebarProps {
   onCategoryChange: (category: string) => void;
   session: Session | null;
 }
-
-const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
 
 export function ServerSidebar({
   publicServers,
@@ -93,17 +88,33 @@ export function ServerSidebar({
   const debouncedSearch = useDebounce(searchQuery, 300);
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  // Fetch categories for filter dropdown
-  const { data: categoriesData, loading: categoriesLoading } = useQuery<{
-    categories: {
-      edges: Array<{ node: Category }>;
+  // Fetch categories for filter dropdown using REST API
+  const [categoriesData, setCategoriesData] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const response = await fetch('/api/categories?limit=50');
+        const result = await response.json();
+
+        if (response.ok && !result.error) {
+          const edges = result.data?.categories?.edges || [];
+          const cats: Category[] = edges.map((edge: { node: Category }) => edge.node);
+          setCategoriesData(cats);
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      } finally {
+        setCategoriesLoading(false);
+      }
     };
-  }>(GET_CATEGORIES, {
-    fetchPolicy: "cache-and-network",
-  });
+    fetchCategories();
+  }, []);
 
   const categories: Category[] = useMemo(
-    () => categoriesData?.categories?.edges?.map((edge) => edge.node) || [],
+    () => categoriesData || [],
     [categoriesData]
   );
 
@@ -279,9 +290,9 @@ export function ServerSidebar({
                 <span className="text-xs max-w-[120px] truncate">
                   {selectedCategory
                     ? truncateText(
-                      categoriesData?.categories?.edges.find(
-                        (c) => c.node.slug === selectedCategory
-                      )?.node.name || "Filter",
+                      categories.find(
+                        (c) => c.slug === selectedCategory
+                      )?.name || "Filter",
                       17
                     )
                     : "Filter"}
@@ -299,12 +310,12 @@ export function ServerSidebar({
                   <DropdownMenuItem onClick={() => onCategoryChange("")}>
                     All Categories
                   </DropdownMenuItem>
-                  {categoriesData?.categories?.edges.map(({ node }) => (
+                  {categories.map((category) => (
                     <DropdownMenuItem
-                      key={node.id}
-                      onClick={() => onCategoryChange(node?.slug || "")}
+                      key={category.id}
+                      onClick={() => onCategoryChange(category?.slug || "")}
                     >
-                      {node.name}
+                      {category.name}
                     </DropdownMenuItem>
                   ))}
                 </>
@@ -438,7 +449,9 @@ export function ServerSidebar({
                       onEdit={
                         !(
                           server.isPublic &&
-                          server.owner !== session?.user?.email?.split("@")[0]
+                          (typeof server.owner === 'string'
+                            ? server.owner !== session?.user?.email?.split("@")[0]
+                            : server.owner?.email !== session?.user?.email)
                         )
                           ? onEditServer
                           : undefined
@@ -446,7 +459,9 @@ export function ServerSidebar({
                       onDelete={
                         !(
                           server.isPublic &&
-                          server.owner !== session?.user?.email?.split("@")[0]
+                          (typeof server.owner === 'string'
+                            ? server.owner !== session?.user?.email?.split("@")[0]
+                            : server.owner?.email !== session?.user?.email)
                         )
                           ? onDeleteServer
                           : undefined

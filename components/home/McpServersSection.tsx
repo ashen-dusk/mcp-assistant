@@ -1,21 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { gql } from "@apollo/client";
-import { useQuery } from "@apollo/client/react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { McpServer, ParsedRegistryServer } from "@/types/mcp";
-import { RECENT_MCP_SERVERS_QUERY } from "@/lib/graphql";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import { useRegistryRecentServers } from "@/hooks/useRegistryRecentServers";
 import { RegistryServerCard } from "@/components/registry/RegistryServerCard";
-
-// GraphQL query for recent MCP servers - imported from lib/graphql.ts
-const GET_RECENT_SERVERS = gql`${RECENT_MCP_SERVERS_QUERY}`;
 
 function ServerItemSkeleton() {
   return (
@@ -106,23 +100,51 @@ export default function McpServersSection() {
   // Registry Data
   const { servers: registryServers, loading: registryLoading } = useRegistryRecentServers(12);
 
-  // Local Data (Apollo)
-  const { loading: localLoading, error: localError, data: localData } = useQuery<{
-    mcpServers: {
-      edges: Array<{ node: McpServer }>;
-    };
-  }>(GET_RECENT_SERVERS, {
-    variables: {
-      first: 16,
-      filters: { isFeatured: { exact: true } },
-      order: { createdAt: "DESC" }, // Order by creation date descending (newest first)
-    },
-    fetchPolicy: "cache-and-network", // Always fetch fresh data while showing cached
-  });
+  // Local Data (REST API)
+  const [localServers, setLocalServers] = useState<McpServer[]>([]);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  // Extract nodes from edges structure
-  const edges = localData?.mcpServers?.edges || [];
-  const localServers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
+  useEffect(() => {
+    const fetchFeaturedServers = async () => {
+      try {
+        setLocalLoading(true);
+        setLocalError(null);
+
+        // Fetch featured servers from REST API
+        // Note: The API doesn't yet support filtering by isFeatured,
+        // so we'll fetch all and filter client-side for now
+        const response = await fetch('/api/mcp?limit=100&orderBy=-created_at', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+          throw new Error(result.error || 'Failed to fetch servers');
+        }
+
+        // Extract servers from edges
+        const edges = result.data?.mcpServers?.edges || [];
+        const servers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
+
+        // Filter for featured servers and take first 16
+        const featured = servers.filter(s => s.isFeatured).slice(0, 16);
+        setLocalServers(featured);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch servers';
+        setLocalError(errorMessage);
+        console.error('Error fetching featured servers:', err);
+      } finally {
+        setLocalLoading(false);
+      }
+    };
+
+    fetchFeaturedServers();
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">

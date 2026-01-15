@@ -1,10 +1,10 @@
 "use client";
 
 import { Bot, Clock, CheckCircle2, Star, Calendar, Cpu } from "lucide-react";
-import { useAssistants } from "@/hooks/useAssistants";
+import { usePlayground } from "@/components/providers/PlaygroundProvider";
 
 export default function AssistantsPage() {
-  const { assistants, loading } = useAssistants();
+  const { assistants, loading } = usePlayground();
 
   const getAssistantIcon = (type: string) => {
     return <Bot className="w-5 h-5" />;

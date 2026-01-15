@@ -2,15 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { gql } from "@apollo/client";
-import { useQuery } from "@apollo/client/react";
+import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight } from "lucide-react";
 import { Category } from "@/types/mcp";
-import { CATEGORIES_QUERY } from "@/lib/graphql";
-
-// GraphQL query for categories - imported from lib/graphql.ts
-const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
 
 function CategoryItemSkeleton() {
   return (
@@ -34,21 +29,45 @@ function HeaderSkeleton() {
 }
 
 export default function Categories() {
-  // Use Apollo Client to fetch categories directly with GraphQL
-  const { loading, error, data } = useQuery<{
-    categories: {
-      edges: Array<{ node: Category }>;
-    };
-  }>(GET_CATEGORIES, {
-    // variables: {
-    //   first: 8, // Show first 8 categories
-    // },
-    fetchPolicy: "cache-and-network", // Always fetch fresh data while showing cached
-  });
+  // Use REST API to fetch categories
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Extract nodes from edges structure
-  const edges = data?.categories?.edges || [];
-  const categories: Category[] = edges.map((edge: { node: Category }) => edge.node);
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch('/api/categories?limit=8', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+          throw new Error(result.error || 'Failed to fetch categories');
+        }
+
+        // Extract categories from edges
+        const edges = result.data?.categories?.edges || [];
+        const cats: Category[] = edges.map((edge: { node: Category }) => edge.node);
+        setCategories(cats);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch categories';
+        setError(errorMessage);
+        console.error('Error fetching categories:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Handle error state - hide section
   if (error) {
