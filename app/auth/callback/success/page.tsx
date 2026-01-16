@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
-export default function CallbackSuccessPage() {
+function CallbackSuccessContent() {
   const searchParams = useSearchParams();
   const { resolvedTheme } = useTheme();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -157,5 +157,13 @@ export default function CallbackSuccessPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CallbackSuccessPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CallbackSuccessContent />
+    </Suspense>
   );
 }
