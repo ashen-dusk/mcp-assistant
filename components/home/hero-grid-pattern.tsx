@@ -46,7 +46,10 @@ export const HeroGridPattern = () => {
                     <Pattern generateRandom={false} cellClassName="border-transparent dark:border-transparent relative z-[100]" />
                 </div>
                 <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_70%)]">
-                    <Pattern className="opacity-[0.5]" cellClassName="border-neutral-500 dark:border-zinc-700" />
+<Pattern
+  className="opacity-[0.4]"
+  cellClassName="border-neutral-400 dark:border-zinc-700"
+/>
                 </div>
             </div>
         </div>
