@@ -36,7 +36,7 @@ async function callGraphQL(token: string, query: string, variables: Record<strin
   return result.data;
 }
 
-async function handleEmbeddings(savedServer: any, userId: string) {
+async function handleEmbeddings(savedServer: any) {
   try {
     const embeddingContent = [
       savedServer.name,
@@ -45,7 +45,18 @@ async function handleEmbeddings(savedServer: any, userId: string) {
       savedServer.transport,
     ].filter(Boolean).join('. ');
 
-    await storeServerEmbeddings(savedServer.id, embeddingContent, userId);
+    // Store embeddings with server metadata for direct retrieval
+    await storeServerEmbeddings(
+      savedServer.id,
+      embeddingContent,
+      {
+        name: savedServer.name,
+        url: savedServer.url,
+        remoteUrl: savedServer.url, // Use url as remoteUrl since GraphQL doesn't provide separate field
+        transport: savedServer.transport,
+        description: savedServer.description,
+      }
+    );
   } catch (err) {
     console.error('Background Embedding Error:', err);
   }
@@ -75,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Trigger embeddings (Optional: await if it's critical, otherwise let it run)
     if (savedServer?.id) {
-      // await handleEmbeddings(savedServer, session.user.id); // TODO
+      await handleEmbeddings(savedServer);
     }
 
     return NextResponse.json({ data: savedServer });
