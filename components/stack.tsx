@@ -1,35 +1,55 @@
 import { cn } from "@/lib/utils";
-import React from "react";
+import { HTMLAttributes, forwardRef } from "react";
 
-interface StackProps extends React.HTMLAttributes<HTMLDivElement> {
-    dir?: "row" | "column";
-    items?: "start" | "center" | "end" | "stretch";
-    justify?: "start" | "center" | "end" | "between" | "around" | "evenly";
-    gap?: number;
+interface StackProps extends HTMLAttributes<HTMLDivElement> {
+  dir?: "row" | "column" | "row-reverse" | "column-reverse";
+  justify?: "start" | "end" | "center" | "between" | "around" | "evenly";
+  items?: "start" | "end" | "center" | "baseline" | "stretch";
+  gap?: number;
 }
 
-export function Stack({
-    children,
-    className,
-    dir = "column",
-    items,
-    justify,
-    gap = 2,
-    ...props
-}: StackProps) {
+export const Stack = forwardRef<HTMLDivElement, StackProps>(
+  ({ dir = "row", justify, items, gap, className, children, ...props }, ref) => {
+    const directionClass = {
+      row: "flex-row",
+      column: "flex-col",
+      "row-reverse": "flex-row-reverse",
+      "column-reverse": "flex-col-reverse",
+    }[dir];
+
+    const justifyClass = justify
+      ? {
+          start: "justify-start",
+          end: "justify-end",
+          center: "justify-center",
+          between: "justify-between",
+          around: "justify-around",
+          evenly: "justify-evenly",
+        }[justify]
+      : undefined;
+
+    const itemsClass = items
+      ? {
+          start: "items-start",
+          end: "items-end",
+          center: "items-center",
+          baseline: "items-baseline",
+          stretch: "items-stretch",
+        }[items]
+      : undefined;
+
+    const gapClass = gap !== undefined ? `gap-${gap}` : undefined;
+
     return (
-        <div
-            className={cn(
-                "flex",
-                dir === "column" ? "flex-col" : "flex-row",
-                items && `items-${items}`,
-                justify && `justify-${justify}`,
-                `gap-${gap}`,
-                className
-            )}
-            {...props}
-        >
-            {children}
-        </div>
+      <div
+        ref={ref}
+        className={cn("flex", directionClass, justifyClass, itemsClass, gapClass, className)}
+        {...props}
+      >
+        {children}
+      </div>
     );
-}
+  }
+);
+
+Stack.displayName = "Stack";

@@ -4,7 +4,6 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@apollo/client/react";
 import { gql } from "@apollo/client";
 import { McpServer, Category } from "@/types/mcp";
-import { connectionStore } from "@/lib/mcp/connection-store";
 import { MCP_SERVERS_QUERY } from "@/lib/graphql";
 import { useConnectionContext } from "@/components/providers/ConnectionProvider";
 
@@ -72,11 +71,10 @@ export function useMcpServersFiltered(
     fetchPolicy: "cache-and-network",
   });
 
-  // Merge with localStorage connection state
+  // Merge with connection state from API
   const mergeWithConnectionState = useCallback((servers: McpServer[]) => {
-    const storedConnections = connectionStore.getAll();
     return servers.map((server) => {
-      const stored = storedConnections[server.id];
+      const stored = connections[server.id];
       if (stored && stored.connectionStatus === "CONNECTED") {
         return {
           ...server,
@@ -90,7 +88,7 @@ export function useMcpServersFiltered(
         tools: server.tools || [],
       };
     });
-  }, []);
+  }, [connections]);
 
   const servers = useMemo(() => {
     if (!isFiltering) return [];

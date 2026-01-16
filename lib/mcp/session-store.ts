@@ -9,6 +9,7 @@ import { redis } from './redis';
 
 export interface SessionData {
   sessionId: string;
+  serverId?: string; // Database server ID for mapping
   serverUrl: string;
   callbackUrl: string;
   transportType: 'sse' | 'streamable_http';
@@ -24,6 +25,7 @@ export interface SessionData {
 
 export interface SetClientOptions {
   sessionId: string;
+  serverId?: string; // Database server ID
   client?: MCPOAuthClient;
   serverUrl?: string;
   callbackUrl?: string;
@@ -33,9 +35,16 @@ export interface SetClientOptions {
   active?: boolean;
 }
 
-const nanoid = customAlphabet(
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-  24
+// first char: letters only (required by OpenAI)
+const firstChar = customAlphabet(
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+  1
+);
+
+// remaining chars: alphanumeric
+const rest = customAlphabet(
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+  11
 );
 
 export class SessionStore {
@@ -57,14 +66,14 @@ export class SessionStore {
   }
 
   generateSessionId(): string {
-    return nanoid();
+    // must start with letter for (OpenAI compatibility)
+    return firstChar() + rest();                                                                
   }
-
-
 
   async setClient(options: SetClientOptions): Promise<void> {
     const {
       sessionId,
+      serverId,
       client,
       serverUrl,
       callbackUrl,
@@ -114,6 +123,7 @@ export class SessionStore {
 
       const sessionData: SessionData = {
         sessionId,
+        serverId,
         serverUrl: resolvedServerUrl,
         callbackUrl: resolvedCallbackUrl,
         transportType,
@@ -245,6 +255,59 @@ export class SessionStore {
       return [];
     }
   }
+
+  // TODO: needs to be optmized
+  async getUserSessionsData(userId: string): Promise<SessionData[]> {
+  const userKey = this.getUserKey(userId);
+
+  try {
+    const sessionIds = await this.redis.smembers(userKey);
+    if (sessionIds.length === 0) return [];
+
+    const validSessions: SessionData[] = [];
+    const orphanedSessionIds: string[] = [];
+
+    /**
+     * Fetch sessions in parallel
+     */
+    const results = await Promise.all(
+      sessionIds.map(async (sessionId) => {
+        const sessionKey = this.getSessionKey(sessionId);
+        const data = await this.redis.get(sessionKey);
+
+        // ❌ Orphaned session ID (no corresponding data)
+        if (!data) {
+          orphanedSessionIds.push(sessionId);
+          return null;
+        }
+
+        return JSON.parse(data) as SessionData;
+      })
+    );
+
+    for (const session of results) {
+      if (session) validSessions.push(session);
+    }
+
+    /**
+     * 🧹 Remove orphaned session IDs from user's set
+     */
+    if (orphanedSessionIds.length > 0) {
+      await this.redis.srem(userKey, ...orphanedSessionIds);
+      console.warn(
+        `🧹 Removed ${orphanedSessionIds.length} orphaned MCP session IDs for user ${userId}`
+      );
+    }
+
+    return validSessions;
+  } catch (error) {
+    console.error(
+      `❌ Failed to get user sessions from Redis for user ${userId}:`,
+      error
+    );
+    return [];
+  }
+}
 
   /**
    * Update tokens for an existing session

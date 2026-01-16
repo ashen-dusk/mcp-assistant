@@ -6,7 +6,7 @@ import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Check, Copy } from "lucide-react";
+import { ArrowRight, Check, Copy, Star } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { McpServer, ParsedRegistryServer } from "@/types/mcp";
 import { RECENT_MCP_SERVERS_QUERY } from "@/lib/graphql";
@@ -171,6 +171,7 @@ export default function McpServersSection() {
           <div className="mb-8 text-center max-w-2xl mx-auto">
             <Link href="/mcp" className="group">
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 group-hover:text-primary transition-colors flex items-center justify-center gap-2">
+                <Star className="h-6 w-6 text-yellow-500" />
                 Featured on MCP Assistant
                 <ArrowRight className="h-6 w-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
               </h2>

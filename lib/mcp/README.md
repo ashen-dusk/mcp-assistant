@@ -69,7 +69,7 @@ The implementation provides five API endpoints:
 
 ### 1. Connect to MCP Server
 
-**POST** `/api/mcp/auth/connect`
+**POST** `/api/mcp/connect`
 
 Initiates connection to an MCP server. If OAuth is required, returns an authorization URL.
 
@@ -110,7 +110,7 @@ Receives OAuth authorization code and completes authentication.
 
 ### 3. Disconnect from Server
 
-**POST** `/api/mcp/auth/disconnect`
+**POST** `/api/mcp/disconnect`
 
 Cleanly disconnects from the MCP server and removes the session.
 
@@ -270,8 +270,8 @@ This implementation replaces the GraphQL-based MCP connection management with di
 
 | Feature | GraphQL Approach | Smithery Approach |
 |---------|-----------------|-------------------|
-| Connection | `connectMcpServer` mutation | `POST /api/mcp/auth/connect` |
-| Disconnection | `disconnectMcpServer` mutation | `POST /api/mcp/auth/disconnect` |
+| Connection | `connectMcpServer` mutation | `POST /api/mcp/connect` |
+| Disconnection | `disconnectMcpServer` mutation | `POST /api/mcp/disconnect` |
 | List Tools | Via GraphQL query | `GET /api/mcp/tool/list` |
 | Call Tool | Via GraphQL mutation | `POST /api/mcp/tool/call` |
 | Session Management | Django backend + Redis | In-memory (or Redis for production) |

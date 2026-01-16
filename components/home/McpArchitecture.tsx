@@ -3,7 +3,7 @@
 import { AnimatedBeam } from "@/components/ui/animated-beam/animated-beam";
 import React, { forwardRef, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { User } from "lucide-react";
+import { User, Bot } from "lucide-react";
 import Image from "next/image";
 
 const Circle = forwardRef<
@@ -61,15 +61,15 @@ export default function McpArchitecture({
           </div>
         </div>
 
-        {/* AG-UI Protocol */}
+        {/* Framework/SDK */}
         <div className="flex flex-col justify-center items-center gap-3">
           <Circle ref={aguiRef as React.RefObject<HTMLDivElement>} className="size-16 p-2">
-            <Icons.agui />
+            <Bot className="h-6 w-6 text-foreground" />
           </Circle>
           <div className="text-center">
-            <div className="text-sm font-semibold mb-1">AG-UI</div>
+            <div className="text-sm font-semibold mb-1">Agent Framework</div>
             <p className="text-xs text-muted-foreground leading-tight max-w-[120px] line-clamp-2">
-              Connects UI to AI Assistant
+              Agent framework/SDK
             </p>
           </div>
         </div>
@@ -123,7 +123,7 @@ export default function McpArchitecture({
       </div>
 
       {/* Animated Beams */}
-      {/* User to AG-UI */}
+      {/* User to Framework/SDK */}
       <AnimatedBeam
         containerRef={containerRef}
         fromRef={userRef}
@@ -132,7 +132,7 @@ export default function McpArchitecture({
         duration={2}
       />
 
-      {/* AG-UI to OpenAI */}
+      {/* Framework/SDK to OpenAI */}
       <AnimatedBeam
         containerRef={containerRef}
         fromRef={aguiRef}
@@ -184,26 +184,6 @@ export default function McpArchitecture({
 const Icons = {
   user: () => (
     <User className="h-6 w-6 text-foreground" strokeWidth={2} />
-  ),
-  agui: () => (
-    <>
-      {/* Light mode */}
-      <Image
-        src="/technologies/agui-light.webp"
-        alt="AG-UI Protocol"
-        width={28}
-        height={28}
-        className="h-7 w-7 object-contain dark:hidden"
-      />
-      {/* Dark mode */}
-      <Image
-        src="/technologies/agui.webp"
-        alt="AG-UI Protocol"
-        width={28}
-        height={28}
-        className="h-7 w-7 object-contain hidden dark:block"
-      />
-    </>
   ),
   openai: () => (
     <svg

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useSyncExternalStore } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@apollo/client/react";
 import { gql } from "@apollo/client";
 import { McpServer } from "@/types/mcp";
-import { connectionStore } from "@/lib/mcp/connection-store";
+import { useMcpConnection } from "./useMcpConnection";
 import { MCP_SERVERS_QUERY } from "@/lib/graphql";
 
 const GET_MCP_SERVERS = gql`${MCP_SERVERS_QUERY}`;
@@ -15,6 +15,7 @@ const GET_MCP_SERVERS = gql`${MCP_SERVERS_QUERY}`;
  */
 export function useMcpServersPagination(first: number = 10) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const { connections } = useMcpConnection();
 
   const { data, loading, error, fetchMore, refetch } = useQuery<{
     mcpServers: {
@@ -32,19 +33,10 @@ export function useMcpServersPagination(first: number = 10) {
     fetchPolicy: "cache-and-network",
   });
 
-  // Subscribe to connection store updates
-  const storeSnapshot = useSyncExternalStore(
-    (callback) => connectionStore.subscribe(callback),
-    () => JSON.stringify(connectionStore.getAll()), // client snapshot
-    () => JSON.stringify({}) // server snapshot
-  );
-
-  // Merge with localStorage connection state
+  // Merge with connection state from API
   const mergeWithConnectionState = useCallback((servers: McpServer[]) => {
-    // Parse the snapshot to get current connections
-    const storedConnections = JSON.parse(storeSnapshot);
     return servers.map((server) => {
-      const stored = storedConnections[server.id];
+      const stored = connections[server.id];
       if (stored && stored.connectionStatus === "CONNECTED") {
         return {
           ...server,
@@ -58,7 +50,7 @@ export function useMcpServersPagination(first: number = 10) {
         tools: server.tools || [],
       };
     });
-  }, [storeSnapshot]);
+  }, [connections]);
 
   const servers = data?.mcpServers?.edges?.map((edge) => edge.node) || [];
   const mergedServers = mergeWithConnectionState(servers);

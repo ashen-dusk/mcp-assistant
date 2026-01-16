@@ -96,11 +96,11 @@ export default function Home() {
             <div className="relative z-10 container mx-auto max-w-5xl text-center">
               <motion.h2
                 variants={item}
-                className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05] mb-6"
+                className="text-3xl sm:text-4xl md:text-6xl  tracking-tight leading-[1.05] mb-6"
               >
                 A Web Based MCP Client to access
                 <br />
-                <span className="text-muted-foreground">remote MCP&apos;s</span>
+                <span className="text-zinc-600">remote MCP&apos;s</span>
               </motion.h2>
 
               <motion.p
@@ -163,56 +163,10 @@ export default function Home() {
                 </motion.div>
               </motion.div>
 
-              {/* ===== Powered By ===== */}
-              <motion.div
-                variants={item}
-                className="pt-4 border-t border-border/30"
-              >
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-                  Powered by
-                </p>
-
-                <div className="flex flex-wrap justify-center gap-5">
-                  {[
-                    { light: '/technologies/mcp-light.webp', dark: '/technologies/mcp.webp', label: 'MCP' },
-                    { light: '/technologies/langgraph-light.webp', dark: '/technologies/langgraph.webp', label: 'LangGraph' },
-                    { light: '/technologies/agui-light.webp', dark: '/technologies/agui.webp', label: 'AGUI Protocol' },
-                  ].map((tech, i) => (
-                    <motion.div
-                      key={i}
-                      variants={logoHover}
-                      initial="rest"
-                      whileHover="hover"
-                      className="flex flex-col items-center gap-2"
-                    >
-                      <div className="rounded-lg border border-border/50 bg-background/50 backdrop-blur-sm p-2 transition-all group-hover:border-primary/50">
-                        <Image
-                          src={tech.light}
-                          alt={tech.label}
-                          width={100}
-                          height={32}
-                          className="h-5 w-auto dark:hidden"
-                        />
-                        <Image
-                          src={tech.dark}
-                          alt={tech.label}
-                          width={100}
-                          height={32}
-                          className="h-5 w-auto hidden dark:block"
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {tech.label}
-                      </span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
             </div>
           </motion.div>
         </Stack>
       </Stack>
-
 
       {/* Recent MCP Servers Section */}
       <div className="container mx-auto px-6 py-10">

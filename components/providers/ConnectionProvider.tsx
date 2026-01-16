@@ -1,14 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo, useEffect, useRef, useState } from "react";
-import { useMcpConnection } from "@/hooks/useMcpConnection";
-import { StoredConnection, connectionStore } from "@/lib/mcp/connection-store";
+import React, { createContext, useContext, ReactNode, useMemo, useEffect, useRef, useState, useCallback } from "react";
+import { StoredConnection } from "@/hooks/useMcpConnection";
 
 interface ConnectionContextValue {
     connections: Record<string, StoredConnection>;
     activeCount: number;
     isValidating: boolean;
     progress: { validated: number; total: number } | null;
+    refresh: () => Promise<void>;
 }
 
 const ConnectionContext = createContext<ConnectionContextValue | undefined>(undefined);
@@ -21,15 +21,32 @@ interface ConnectionProviderProps {
 
 export function ConnectionProvider({ children, filter }: ConnectionProviderProps) {
     const hasValidated = useRef(false);
-    const [isValidating, setIsValidating] = useState(true); // Start as true
+    const [isValidating, setIsValidating] = useState(true);
     const [progress, setProgress] = useState<{ validated: number; total: number } | null>(null);
+    const [allConnections, setAllConnections] = useState<Record<string, StoredConnection>>({});
 
-    // Use the refactored hook for all connection data
-    const {
-        connections: allConnections,
-        activeConnectionCount: totalActiveCount,
-        validateConnections,
-    } = useMcpConnection();
+    // Fetch connections from API (singleton)
+    const fetchConnections = useCallback(async () => {
+        try {
+            const response = await fetch('/api/mcp/connections');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch connections: ${response.statusText}`);
+            }
+            const data = await response.json();
+
+            const connectionsMap = data.connections.reduce((acc: Record<string, StoredConnection>, conn: StoredConnection) => {
+                const key = conn.serverId || conn.sessionId;
+                acc[key] = conn;
+                return acc;
+            }, {});
+
+            setAllConnections(connectionsMap);
+        } catch (err) {
+            console.error('[ConnectionProvider] Error:', err);
+        }
+    }, []);
+
+    const totalActiveCount = Object.values(allConnections).filter(conn => conn.connectionStatus === 'CONNECTED').length;
 
     // Apply filter to connections and count
     // Only show connections after validation completes
@@ -63,37 +80,31 @@ export function ConnectionProvider({ children, filter }: ConnectionProviderProps
         };
     }, [allConnections, totalActiveCount, filter, isValidating]);
 
-    // Validate connections on mount (only once)
+    // Fetch connections on mount
     useEffect(() => {
         if (hasValidated.current) return;
 
-        const validate = async () => {
+        const load = async () => {
             hasValidated.current = true;
             setIsValidating(true);
-            setProgress(null);
 
             try {
-                await validateConnections(
-                    filter,
-                    (validated, total) => {
-                        setProgress({ validated, total });
-                    }
-                );
+                await fetchConnections();
             } finally {
                 setIsValidating(false);
-                setProgress(null);
             }
         };
 
-        validate();
-    }, [filter, validateConnections]);
+        load();
+    }, [fetchConnections]);
 
     const contextValue = useMemo<ConnectionContextValue>(() => ({
         connections,
         activeCount,
         isValidating,
         progress,
-    }), [connections, activeCount, isValidating, progress]);
+        refresh: fetchConnections,
+    }), [connections, activeCount, isValidating, progress, fetchConnections]);
 
     return (
         <ConnectionContext.Provider value={contextValue}>

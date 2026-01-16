@@ -3,8 +3,6 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { ApolloProvider } from "@/components/providers/ApolloProvider";
-import "@copilotkit/react-ui/styles.css";
-
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const geistSans = Geist({

@@ -6,7 +6,7 @@ interface DisconnectRequestBody {
 }
 
 /**
- * POST /api/mcp/auth/disconnect
+ * POST /api/mcp/disconnect
  *
  * Disconnect from an MCP server and clean up the session
  *
