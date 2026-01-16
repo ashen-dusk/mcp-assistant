@@ -9,6 +9,7 @@ import { redis } from './redis';
 
 export interface SessionData {
   sessionId: string;
+  serverId?: string; // Database server ID for mapping
   serverUrl: string;
   callbackUrl: string;
   transportType: 'sse' | 'streamable_http';
@@ -24,6 +25,7 @@ export interface SessionData {
 
 export interface SetClientOptions {
   sessionId: string;
+  serverId?: string; // Database server ID
   client?: MCPOAuthClient;
   serverUrl?: string;
   callbackUrl?: string;
@@ -33,9 +35,16 @@ export interface SetClientOptions {
   active?: boolean;
 }
 
-const nanoid = customAlphabet(
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-  24
+// first char: letters only (required by OpenAI)
+const firstChar = customAlphabet(
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+  1
+);
+
+// remaining chars: alphanumeric
+const rest = customAlphabet(
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+  11
 );
 
 export class SessionStore {
@@ -57,14 +66,14 @@ export class SessionStore {
   }
 
   generateSessionId(): string {
-    return nanoid();
+    // must start with letter for (OpenAI compatibility)
+    return firstChar() + rest();                                                                
   }
-
-
 
   async setClient(options: SetClientOptions): Promise<void> {
     const {
       sessionId,
+      serverId,
       client,
       serverUrl,
       callbackUrl,
@@ -114,6 +123,7 @@ export class SessionStore {
 
       const sessionData: SessionData = {
         sessionId,
+        serverId,
         serverUrl: resolvedServerUrl,
         callbackUrl: resolvedCallbackUrl,
         transportType,

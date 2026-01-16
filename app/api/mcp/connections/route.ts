@@ -28,6 +28,7 @@ async function normalizeConnectionData(session: any) {
 
   return {
     sessionId: session.sessionId,
+    serverId: session.serverId, // Include serverId for lookup
     serverUrl: session.serverUrl,
     transport: session.transportType,
     active: session.active,

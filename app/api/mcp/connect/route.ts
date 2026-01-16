@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
       // Connection successful, save client to session store with full config
       await sessionStore.setClient({
         sessionId,
+        serverId,
         client,
         serverUrl,
         callbackUrl,
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
         if (authUrl) {
           await sessionStore.setClient({
             sessionId,
+            serverId,
             client,
             serverUrl,
             callbackUrl,

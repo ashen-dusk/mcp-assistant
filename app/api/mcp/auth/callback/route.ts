@@ -107,6 +107,7 @@ async function handleCallback(request: NextRequest) {
     // Re-save client with updated OAuth tokens (important for serverless!)
     await sessionStore.setClient({
       sessionId,
+      serverId,
       client,
       serverUrl: serverUrl || client.getServerUrl(),
       callbackUrl: client.getCallbackUrl(),
