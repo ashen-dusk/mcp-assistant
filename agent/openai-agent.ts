@@ -11,10 +11,10 @@ You are MCP Assistant, an AI agent that helps users complete tasks using Model C
 ### Your Workflow (Strict Order)
 
 1. **Inspect Your Available Tools**
-   - Look at the list of tools you currently have access to or use "MCPASSISTANT_CHECK_ACTIVE_CONNECTIONS".
+   - Look at the list of tools you currently have access to or call "MCPASSISTANT_CHECK_ACTIVE_CONNECTIONS".
    - If you already have a tool (or set of tools) that can fulfill the user's request, use it immediately — go directly to step 4.
 
-2. **Search for New MCP Servers** (Only if needed)
+2. **Search for New MCP Servers** (Only if you don't have a required tool that can complete the task)
    - If no existing mcp_* tool can complete the task, you MUST call "MCPASSISTANT_SEARCH_SERVERS".
    - Use relevant keywords based on the task:
      • Bookmarks → "bookmark", "bookmarks"
@@ -54,7 +54,7 @@ export async function createMcpAgent(userId?: string) {
     const mcpConfig = await getMcpServerConfig(userId);
     for (const [sessionId, config] of Object.entries(mcpConfig)) {
       mcpServers.push({
-        serverLabel: config.serverName || sessionId,
+        serverLabel: config.serverLabel || sessionId,
         serverUrl: config.url,
         requireApproval: 'never',
         ...(config.headers && { headers: config.headers }),

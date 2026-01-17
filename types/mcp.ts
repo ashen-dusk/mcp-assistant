@@ -94,6 +94,7 @@ export type McpServerConfig = {
     url: string;
     serverId?: string;
     serverName?: string;
+    serverLabel?: string;
     headers?: Record<string, string>;
   };
 };
