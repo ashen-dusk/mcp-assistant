@@ -50,6 +50,9 @@ export function ServerDetails({
   // Get connection status from hook
   const { connection } = useMcpConnection({ serverId: server.id });
 
+  // Use connection status from hook (current data) if available, otherwise fall back to server prop
+  const connectionStatus = connection?.connectionStatus ?? "DISCONNECTED";
+
   const handleCopyUrl = () => {
     if (server.url) {
       navigator.clipboard.writeText(server.url);
@@ -159,13 +162,13 @@ export function ServerDetails({
                 <span className="font-medium">Status:</span>
                 <Badge
                   variant={
-                    server.connectionStatus === "CONNECTED"
+                    connectionStatus === "CONNECTED"
                       ? "default"
                       : "secondary"
                   }
                   className="text-[10px] px-1.5 py-0"
                 >
-                  {server.connectionStatus || "Unknown"}
+                  {connectionStatus}
                 </Badge>
               </div>
               {server.url && (
