@@ -41,8 +41,8 @@ async function handleEmbeddings(savedServer: any, userId: string) {
     const embeddingContent = [
       savedServer.name,
       savedServer.description,
-      savedServer.url,
-      savedServer.transport,
+      // savedServer.url,
+      // savedServer.transport,
     ].filter(Boolean).join('. ');
 
     await storeServerEmbeddings(savedServer.id, embeddingContent, {
@@ -51,11 +51,48 @@ async function handleEmbeddings(savedServer: any, userId: string) {
       remoteUrl: savedServer.url, // or different if you have a remoteUrl field
       transport: savedServer.transport,
       description: savedServer.description,
-    });
+    }
+    , userId);
   } catch (err) {
     console.error('Background Embedding Error:', err);
   }
 }
+
+type DeleteEmbeddingsArgs = {
+  userId?: string;
+  serverName?: string;
+};
+
+export const deleteServerEmbeddings = async (
+  args: DeleteEmbeddingsArgs
+) => {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("mcp_server_embeddings")
+    .delete({ count: "exact" });
+
+  if (args.userId) {
+    query = query.eq("user_id", args.userId);
+  }
+
+  if (args.serverName) {
+    query = query.eq("server_name", args.serverName);
+  }
+
+  const { error, count } = await query;
+
+  if (error) {
+    console.error("Embedding deletion failed", { args, error });
+    throw error;
+  }
+
+  // console.info("Embedding deletion success", {
+  //   args,
+  //   deletedRows: count ?? 0,
+  // });
+};
+
 
 // --- Route Handlers ---
 
@@ -99,7 +136,9 @@ export async function DELETE(request: NextRequest) {
     if (!serverName) return NextResponse.json({ error: "Server name is required" }, { status: 400 });
 
     const data = await callGraphQL(session.access_token, REMOVE_MCP_SERVER_MUTATION, { serverName });
-    
+    if (data.removeMcpServer) {
+      await deleteServerEmbeddings({ serverName });
+    }
     return NextResponse.json({ data: data.removeMcpServer });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
