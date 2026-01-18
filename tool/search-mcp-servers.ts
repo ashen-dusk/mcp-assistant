@@ -33,7 +33,7 @@ User Request → Extract Capability
 
     try {
       let embeddingResults: any[] = [];
-      let textSearchResults: any[] = [];
+      let allTextResults: any[] = [];
 
       // 1. Semantic search using embeddings (if query provided)
       if (searchQuery) {
@@ -45,7 +45,6 @@ User Request → Extract Capability
             first || 10
           );
 
-          // Embeddings now contain full server metadata
           embeddingResults = embeddings.map((emb: any) => ({
             id: emb.server_id,
             name: emb.server_name,
@@ -57,11 +56,8 @@ User Request → Extract Capability
           }));
         } catch (embError) {
           console.error('[Search] Embedding search failed:', embError);
-          // Continue with text search even if embedding search fails
         }
       }
-
-      console.log('[Search] Embedding Results:', embeddingResults);
 
       // 2. Text-based GraphQL search across name OR description
       // Uses custom 'search' parameter that searches both fields with OR logic
@@ -82,7 +78,6 @@ User Request → Extract Capability
       });
 
       const data = await response.json();
-      let allTextResults: any[] = [];
 
       if (data.data?.mcpServers) {
         allTextResults = data.data.mcpServers.edges.map((edge: any) => edge.node);
@@ -91,8 +86,7 @@ User Request → Extract Capability
       if (response.ok && data.data?.mcpServers) {
         const pageInfo = data.data.mcpServers.pageInfo;
 
-        // 3. Combine and prioritize results
-        // Semantic results have full server metadata from embeddings
+        // 3. Semantic results have full server metadata from embeddings
         const uniqueSemanticServers = embeddingResults.reduce((acc: any[], curr: any) => {
           const existing = acc.find(s => s.id === curr.id);
           if (!existing || curr.similarity > existing.similarity) {
@@ -106,37 +100,22 @@ User Request → Extract Capability
           return acc;
         }, []).sort((a: any, b: any) => b.similarity - a.similarity);
 
-        // 4. Merge text and semantic results, prioritizing semantic matches
-        const semanticIds = new Set(uniqueSemanticServers.map((s: any) => s.id));
         const textOnlyServers = allTextResults
-          .filter((server: any) => !semanticIds.has(server.id))
           .map((server: any) => ({
             ...server,
             matchType: 'text'
           }));
 
-        // Combine: semantic results first (sorted by similarity), then text-only results
-        const combinedServers = [
-          ...uniqueSemanticServers.map((s: any) => ({ ...s, matchType: 'semantic' })),
-          ...textOnlyServers
-        ];
-
-        console.log('[Search] Combined results:', {
-          semantic: uniqueSemanticServers.length,
-          textOnly: textOnlyServers.length,
-          total: combinedServers.length
-        });
-
         yield {
           state: 'ready' as const,
           success: true,
-          servers: combinedServers, // Combined results with semantic matches prioritized
-          semanticResults: uniqueSemanticServers, // Kept for backward compatibility
-          count: combinedServers.length,
+          servers: textOnlyServers, 
+          semanticResults: uniqueSemanticServers,
+          count: textOnlyServers.length + uniqueSemanticServers.length,
           semanticCount: uniqueSemanticServers.length,
           hasNextPage: pageInfo.hasNextPage,
           endCursor: pageInfo.endCursor,
-          message: `Found ${combinedServers.length} server${combinedServers.length !== 1 ? 's' : ''}${searchQuery ? ` matching "${searchQuery}"` : ''} (${uniqueSemanticServers.length} semantic, ${textOnlyServers.length} text)`,
+          message: `Found ${textOnlyServers.length} server${textOnlyServers.length !== 1 ? 's' : ''}${searchQuery ? ` matching "${searchQuery}"` : ''} (${uniqueSemanticServers.length} semantic, ${textOnlyServers.length} text)`,
         };
       } else if (data.errors) {
         yield {
