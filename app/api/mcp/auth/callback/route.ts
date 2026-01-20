@@ -84,6 +84,15 @@ async function handleCallback(request: NextRequest) {
     successUrl.searchParams.set('sessionId', sessionId);
     successUrl.searchParams.set('step', 'success');
 
+    // Add server metadata for the UI
+    const serverName = client.getServerName();
+    const serverId = client.getServerId();
+    const serverUrl = client.getServerUrl();
+
+    if (serverName) successUrl.searchParams.set('server', serverName);
+    if (serverId) successUrl.searchParams.set('serverId', serverId);
+    if (serverUrl) successUrl.searchParams.set('serverUrl', serverUrl);
+
     return NextResponse.redirect(successUrl);
   } catch (error: unknown) {
     // Handle any errors during OAuth completion

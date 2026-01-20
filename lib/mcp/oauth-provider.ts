@@ -8,6 +8,10 @@ import type {
 } from '@modelcontextprotocol/sdk/shared/auth.js';
 
 /**
+ * @deprecated Use the `@InMemoryOAuthClientProvider` package instead.
+ */
+
+/**
  * In-memory OAuth provider implementation for MCP
  *
  * This provider implements the OAuthClientProvider interface and stores

@@ -17,7 +17,6 @@ import {
   CallToolResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
-import { InMemoryOAuthClientProvider } from './oauth-provider';
 import { RedisOAuthClientProvider, AgentsOAuthProvider } from './redis-oauth-client-provider';
 import { sessionStore } from './session-store';
 
@@ -573,6 +572,20 @@ export class MCPClient {
    */
   getTransportType(): TransportType {
     return this.transportType || 'streamable_http';
+  }
+
+  /**
+   * Get the server name
+   */
+  getServerName(): string | undefined {
+    return this.serverName;
+  }
+
+  /**
+   * Get the server ID
+   */
+  getServerId(): string | undefined {
+    return this.serverId;
   }
 
   /**

@@ -25,6 +25,7 @@
 export { SessionStore, sessionStore } from './session-store';
 export { getMcpServerConfig } from './config';
 export { InMemoryOAuthClientProvider } from './oauth-provider';
+export { RedisOAuthClientProvider } from './redis-oauth-client-provider';
 export { MCPClient, UnauthorizedError } from './oauth-client';
 
 // Re-export types from MCP SDK for convenience
