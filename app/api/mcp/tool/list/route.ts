@@ -29,7 +29,6 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   let sessionId: string | null = null;
   let userId: string | null = null;
-  let serverId: string | null = null;
 
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -54,30 +53,10 @@ export async function GET(request: NextRequest) {
 
     userId = user.id;
 
-    // Extract serverId from sessionId
-    const parts = sessionId.split('.');
-    serverId = parts.length > 1 ? parts.slice(1).join('.') : sessionId;
-
-    // Retrieve session data from session store
-    const sessionData = await sessionStore.getSession(userId, serverId);
-    if (!sessionData || !sessionData.userId || !sessionData.serverId) {
-      console.log('[List Tools] Session not found or incomplete for sessionId:', sessionId);
-      return NextResponse.json(
-        { error: 'Invalid session or session expired' },
-        { status: 404 }
-      );
-    }
-
-
-    // Create MCP client
+    // Create MCP client - it will load serverId from session
     const client = new MCPClient({
-      serverUrl: sessionData.serverUrl,
-      callbackUrl: sessionData.callbackUrl,
-      onRedirect: () => { },
-      userId: sessionData.userId,
-      serverId: sessionData.serverId,
+      userId,
       sessionId,
-      transportType: sessionData.transportType,
     });
 
     // Connect to the server
@@ -103,8 +82,8 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         tools: result.tools,
-        url: sessionData.serverUrl,
-        transport: sessionData.transportType,
+        url: client.getServerUrl(),
+        transport: client.getTransportType(),
       });
     } catch (error: unknown) {
       console.log('[List Tools] Error fetching tools:', error);
@@ -123,9 +102,9 @@ export async function GET(request: NextRequest) {
     console.log('[List Tools] Unexpected error:', error);
 
     // Check for invalid refresh token error and clear session
-    if (userId && serverId && error instanceof Error && (error.message.includes('Invalid refresh token') || error.name === 'InvalidGrantError' || (error as any).code === 'InvalidGrantError')) {
-      console.log(`[List Tools] Clearing session for server ${serverId} due to invalid refresh token`);
-      await sessionStore.removeSession(userId, serverId);
+    if (userId && sessionId && error instanceof Error && (error.message.includes('Invalid refresh token') || error.name === 'InvalidGrantError' || (error as any).code === 'InvalidGrantError')) {
+      console.log(`[List Tools] Clearing session ${sessionId} due to invalid refresh token`);
+      await sessionStore.removeSession(userId, sessionId);
     }
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

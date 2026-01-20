@@ -28,6 +28,8 @@ export interface AgentsOAuthProvider extends OAuthClientProvider {
     ): Promise<{ valid: boolean; serverId?: string; error?: string }>;
     consumeState(state: string): Promise<void>;
     deleteCodeVerifier(): Promise<void>;
+    isTokenExpired(): boolean;
+    setTokenExpiresAt(expiresAt: number): void;
 }
 
 export class RedisOAuthClientProvider implements AgentsOAuthProvider {
@@ -35,18 +37,16 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
     private _clientId_: string | undefined;
     private _onRedirect?: (url: string) => void;
     private _tokenExpiresAt?: number;
-    private _sessionId?: string;
 
     constructor(
         public userId: string,
         public serverId: string,
+        public sessionId: string,
         public clientName: string,
         public baseRedirectUrl: string,
-        onRedirect?: (url: string) => void,
-        sessionId?: string
+        onRedirect?: (url: string) => void
     ) {
         this._onRedirect = onRedirect;
-        this._sessionId = sessionId;
     }
 
     get clientMetadata(): OAuthClientMetadata {
@@ -77,19 +77,20 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
         this._clientId_ = clientId_;
     }
 
-    // Single key for all data - MUST match SessionStore key structure
-    oauthDataKey() {
-        return `mcp:server:${this.userId}:${this.serverId}`;
+    // Get Redis key for this session - MUST match SessionStore key structure
+    private getSessionKey(): string {
+        return `mcp:session:${this.userId}:${this.sessionId}`;
     }
 
-    // Load all OAuth data from Redis
-    private async loadOAuthData(): Promise<{
+    // Load session data from Redis including OAuth tokens and client info
+    private async getSessionData(): Promise<{
         clientInformation?: OAuthClientInformationFull;
         tokens?: OAuthTokens;
         codeVerifier?: string;
         clientId?: string;
+        tokenExpiresAt?: number;
     }> {
-        const data = await redis.get(this.oauthDataKey());
+        const data = await redis.get(this.getSessionKey());
         if (!data) return {};
         try {
             return JSON.parse(data);
@@ -98,15 +99,16 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
         }
     }
 
-    // Save all OAuth data to Redis (merge with existing session data)
-    private async saveOAuthData(data: {
+    // Save session data to Redis (merges with existing session metadata)
+    private async saveSessionData(data: {
         clientInformation?: OAuthClientInformationFull;
         tokens?: OAuthTokens;
         codeVerifier?: string;
         clientId?: string;
+        tokenExpiresAt?: number;
     }): Promise<void> {
         // Load existing data first to preserve session metadata
-        const existingData = await redis.get(this.oauthDataKey());
+        const existingData = await redis.get(this.getSessionKey());
         const existingSession = existingData ? JSON.parse(existingData) : {};
 
         // Merge OAuth data with existing session data
@@ -116,15 +118,22 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
         };
 
         // Use setex with the standard session TTL to ensure consistency
-        await redis.setex(this.oauthDataKey(), SESSION_TTL, JSON.stringify(mergedData));
+        await redis.setex(this.getSessionKey(), SESSION_TTL, JSON.stringify(mergedData));
+        console.log(`[OAuth Provider] Session data saved for ${this.serverId}`);
     }
 
     async clientInformation(): Promise<OAuthClientInformation | undefined> {
-        const data = await this.loadOAuthData();
+        const data = await this.getSessionData();
 
         // Also restore clientId from data if we don't have it
         if (data.clientId && !this._clientId_) {
             this._clientId_ = data.clientId;
+        }
+
+        if (data.clientInformation) {
+            console.log(`[OAuth Provider] Loaded client information from Redis for ${this.serverId}`);
+        } else {
+            console.log(`[OAuth Provider] No client information found in Redis for ${this.serverId}`);
         }
 
         return data.clientInformation;
@@ -133,102 +142,56 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
     async saveClientInformation(
         clientInformation: OAuthClientInformationFull
     ): Promise<void> {
-        const data = await this.loadOAuthData();
+        console.log(`[OAuth Provider] Saving client information for ${this.serverId}:`, clientInformation.client_id);
+        const data = await this.getSessionData();
         data.clientInformation = clientInformation;
         data.clientId = clientInformation.client_id;
-        await this.saveOAuthData(data);
+        await this.saveSessionData(data);
         this.clientId = clientInformation.client_id;
     }
 
     async saveTokens(tokens: OAuthTokens): Promise<void> {
-        const data = await this.loadOAuthData();
+        console.log(`[OAuth Provider] saveTokens called for ${this.serverId}`);
+        const data = await this.getSessionData();
         data.tokens = tokens;
 
         // Calculate and store token expiration
         if (tokens.expires_in) {
             const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
             this._tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+            data.tokenExpiresAt = this._tokenExpiresAt; // Persist to Redis
+            console.log(`[OAuth Provider] Token expires at: ${new Date(this._tokenExpiresAt).toISOString()} (in ${tokens.expires_in}s)`);
         }
 
-        await this.saveOAuthData(data);
+        await this.saveSessionData(data);
     }
 
     get authUrl() {
         return this._authUrl_;
     }
 
-    stateKey(nonce: string) {
-        return `mcp:server:${this.userId}:${this.serverId}:state:${nonce}`;
-    }
-
     async state(): Promise<string> {
-        // If sessionId was provided, use it as the state
-        if (this._sessionId) {
-            return this._sessionId;
-        }
-
-        // Otherwise generate new state (for backward compatibility)
-        const nonce = nanoid();
-        const state = `${nonce}.${this.serverId}`;
-        const storedState: StoredState = {
-            nonce,
-            serverId: this.serverId,
-            createdAt: Date.now()
-        };
-        await redis.set(
-            this.stateKey(nonce),
-            JSON.stringify(storedState),
-            "PX",
-            STATE_EXPIRATION_MS
-        );
-        return state;
+        // Use sessionId as the state - it's already unique and random
+        return this.sessionId;
     }
 
     async checkState(
         state: string
     ): Promise<{ valid: boolean; serverId?: string; error?: string }> {
-        const parts = state.split(".");
-        if (parts.length !== 2) {
-            return { valid: false, error: "Invalid state format" };
-        }
-
-        const [nonce, serverId] = parts;
-        const key = this.stateKey(nonce);
-        const data = await redis.get(key);
+        // State is the sessionId - validation happens by checking if session exists in Redis
+        const sessionKey = this.getSessionKey();
+        const data = await redis.get(sessionKey);
 
         if (!data) {
-            return { valid: false, error: "State not found or already used" };
+            return { valid: false, error: "Session not found" };
         }
 
-        const storedState = JSON.parse(data) as StoredState;
-
-        if (storedState.serverId !== serverId) {
-            // Don't delete here, just return error. Let expiration handle it or explicit consumption.
-            // But for security, maybe we should? The original code deleted it.
-            await redis.del(key);
-            return { valid: false, error: "State serverId mismatch" };
-        }
-
-        // Redis handles expiration, but double check just in case logic changes
-        const age = Date.now() - storedState.createdAt;
-        if (age > STATE_EXPIRATION_MS) {
-            await redis.del(key);
-            return { valid: false, error: "State expired" };
-        }
-
-        return { valid: true, serverId };
+        return { valid: true, serverId: this.serverId };
     }
 
     async consumeState(state: string): Promise<void> {
-        const parts = state.split(".");
-        if (parts.length !== 2) {
-            console.warn(
-                `[OAuth] consumeState called with invalid state format: ${state.substring(0, 20)}...`
-            );
-            return;
-        }
-        const [nonce] = parts;
-        await redis.del(this.stateKey(nonce));
+        // No-op since we're using sessionId directly and don't need separate state tracking
+        // Session will be cleaned up when it expires or is explicitly removed
     }
 
     async redirectToAuthorization(authUrl: URL): Promise<void> {
@@ -242,9 +205,9 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
         scope: "all" | "client" | "tokens" | "verifier"
     ): Promise<void> {
         if (scope === "all") {
-            await redis.del(this.oauthDataKey());
+            await redis.del(this.getSessionKey());
         } else {
-            const data = await this.loadOAuthData();
+            const data = await this.getSessionData();
             if (scope === "client") {
                 delete data.clientInformation;
                 delete data.clientId;
@@ -253,20 +216,20 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
             } else if (scope === "verifier") {
                 delete data.codeVerifier;
             }
-            await this.saveOAuthData(data);
+            await this.saveSessionData(data);
         }
     }
 
     async saveCodeVerifier(verifier: string): Promise<void> {
-        const data = await this.loadOAuthData();
+        const data = await this.getSessionData();
         // Always overwrite verifier to ensure the latest one is used for the current flow
         console.log(`[OAuth] Saving code verifier for server ${this.serverId}`);
         data.codeVerifier = verifier;
-        await this.saveOAuthData(data);
+        await this.saveSessionData(data);
     }
 
     async codeVerifier(): Promise<string> {
-        const data = await this.loadOAuthData();
+        const data = await this.getSessionData();
 
         // Lazy-load clientId if we don't have it
         if (data.clientId && !this._clientId_) {
@@ -280,17 +243,23 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
     }
 
     async deleteCodeVerifier(): Promise<void> {
-        const data = await this.loadOAuthData();
+        const data = await this.getSessionData();
         delete data.codeVerifier;
-        await this.saveOAuthData(data);
+        await this.saveSessionData(data);
     }
 
     async tokens(): Promise<OAuthTokens | undefined> {
-        const data = await this.loadOAuthData();
+        const data = await this.getSessionData();
 
         // Lazy-load clientId if we don't have it
         if (data.clientId && !this._clientId_) {
             this._clientId_ = data.clientId;
+        }
+
+        // Restore tokenExpiresAt from Redis if not in memory
+        if (data.tokenExpiresAt && !this._tokenExpiresAt) {
+            this._tokenExpiresAt = data.tokenExpiresAt;
+            console.log(`[OAuth Provider] Restored token expiration from Redis: ${new Date(this._tokenExpiresAt).toISOString()}`);
         }
 
         return data.tokens;
@@ -298,12 +267,24 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
 
     /**
      * Check if the current access token is expired or about to expire
+     * Note: This is synchronous, so it relies on tokenExpiresAt being loaded earlier
+     * Call tokens() first to ensure tokenExpiresAt is restored from Redis
      */
     isTokenExpired(): boolean {
         if (!this._tokenExpiresAt) {
+            console.log('[OAuth Provider] No token expiration timestamp - cannot determine if expired');
             return false; // No expiration tracking
         }
-        return Date.now() >= this._tokenExpiresAt;
+        const now = Date.now();
+        const isExpired = now >= this._tokenExpiresAt;
+        if (isExpired) {
+            const expiredAgo = Math.floor((now - this._tokenExpiresAt) / 1000);
+            console.log(`[OAuth Provider] Token expired ${expiredAgo}s ago`);
+        } else {
+            const expiresIn = Math.floor((this._tokenExpiresAt - now) / 1000);
+            console.log(`[OAuth Provider] Token expires in ${expiresIn}s`);
+        }
+        return isExpired;
     }
 
     /**

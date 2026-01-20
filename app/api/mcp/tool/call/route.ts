@@ -28,39 +28,10 @@ export async function POST(request: NextRequest) {
 
     const userId = user.id;
 
-    // Extract serverId from sessionId
-    const parts = sessionId.split('.');
-    const serverId = parts.length > 1 ? parts.slice(1).join('.') : sessionId;
-
-    // Retrieve session data from session store
-    const sessionData = await sessionStore.getSession(userId, serverId);
-    if (!sessionData || !sessionData.userId || !sessionData.serverId) {
-      return NextResponse.json(
-        {
-          data: {
-            callMcpServerTool: {
-              success: false,
-              message: "Invalid session or session expired. Please reconnect.",
-              toolName,
-              serverName,
-              result: null,
-              error: "Invalid session or session expired"
-            }
-          }
-        },
-        { status: 200 }
-      );
-    }
-
-    // Create MCP client
+    // Create MCP client - it will load serverId from session
     const client = new MCPClient({
-      serverUrl: sessionData.serverUrl,
-      callbackUrl: sessionData.callbackUrl,
-      onRedirect: () => { },
-      userId: sessionData.userId,
-      serverId: sessionData.serverId,
+      userId,
       sessionId,
-      transportType: sessionData.transportType,
     });
 
     // Connect to the server

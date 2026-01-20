@@ -52,18 +52,18 @@ const rest = customAlphabet(
 
 export class SessionStore {
   private readonly SESSION_TTL = 43200; // 12 hours
-  private readonly KEY_PREFIX = 'mcp:server:';
+  private readonly KEY_PREFIX = 'mcp:session:';
 
   constructor(private redis: Redis) {
 
   }
 
-  private getSessionKey(userId: string, serverId: string): string {
-    return `${this.KEY_PREFIX}${userId}:${serverId}`;
+  private getSessionKey(userId: string, sessionId: string): string {
+    return `${this.KEY_PREFIX}${userId}:${sessionId}`;
   }
 
   private getUserKey(userId: string): string {
-    return `mcp:user:${userId}:servers`;
+    return `mcp:user:${userId}:sessions`;
   }
 
   generateSessionId(): string {
@@ -89,11 +89,11 @@ export class SessionStore {
         throw new Error('serverUrl and callbackUrl must be provided');
       }
 
-      if (!userId || !serverId) {
-        throw new Error('userId and serverId are required for session storage');
+      if (!userId || !sessionId) {
+        throw new Error('userId and sessionId are required for session storage');
       }
 
-      const sessionKey = this.getSessionKey(userId, serverId);
+      const sessionKey = this.getSessionKey(userId, sessionId);
 
       // Load existing data to preserve OAuth tokens
       const existingDataStr = await this.redis.get(sessionKey);
@@ -115,9 +115,9 @@ export class SessionStore {
 
       await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
 
-      // Track server IDs for this user
+      // Track session IDs for this user
       const userKey = this.getUserKey(userId);
-      await this.redis.sadd(userKey, serverId);
+      await this.redis.sadd(userKey, sessionId);
 
       console.log(`✅ Redis SET: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
     } catch (error) {
@@ -126,9 +126,9 @@ export class SessionStore {
     }
   }
 
-  async getSession(userId: string, serverId: string): Promise<SessionData | null> {
+  async getSession(userId: string, sessionId: string): Promise<SessionData | null> {
     try {
-      const sessionKey = this.getSessionKey(userId, serverId);
+      const sessionKey = this.getSessionKey(userId, sessionId);
       const sessionDataStr = await this.redis.get(sessionKey);
       if (!sessionDataStr) {
         console.log(`❓ Session not found: ${sessionKey}`);
@@ -159,14 +159,14 @@ export class SessionStore {
     const userKey = this.getUserKey(userId);
 
     try {
-      const serverIds = await this.redis.smembers(userKey);
-      if (serverIds.length === 0) return [];
+      const sessionIds = await this.redis.smembers(userKey);
+      if (sessionIds.length === 0) return [];
 
       const validSessions: SessionData[] = [];
 
       const results = await Promise.all(
-        serverIds.map(async (serverId) => {
-          const sessionKey = this.getSessionKey(userId, serverId);
+        sessionIds.map(async (sessionId) => {
+          const sessionKey = this.getSessionKey(userId, sessionId);
           const data = await this.redis.get(sessionKey);
 
           if (!data) {
@@ -190,13 +190,13 @@ export class SessionStore {
     }
   }
 
-  async removeSession(userId: string, serverId: string): Promise<void> {
+  async removeSession(userId: string, sessionId: string): Promise<void> {
     try {
-      const sessionKey = this.getSessionKey(userId, serverId);
+      const sessionKey = this.getSessionKey(userId, sessionId);
 
-      // Remove server tracking for user
+      // Remove session tracking for user
       const userKey = this.getUserKey(userId);
-      await this.redis.srem(userKey, serverId);
+      await this.redis.srem(userKey, sessionId);
 
       await this.redis.del(sessionKey);
       console.log(`✅ Removed session: ${sessionKey}`);

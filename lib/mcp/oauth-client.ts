@@ -27,13 +27,13 @@ import { sessionStore } from './session-store';
 export type TransportType = 'sse' | 'streamable_http';
 
 export interface MCPOAuthClientOptions {
-  serverUrl: string;
+  serverUrl?: string;
   serverName?: string;
-  callbackUrl: string;
-  onRedirect: (url: string) => void;
+  callbackUrl?: string;
+  onRedirect?: (url: string) => void;
   userId: string;
-  serverId: string;
-  sessionId?: string;
+  serverId?: string; // Optional - loaded from session if not provided
+  sessionId: string; // Required - primary key for session lookup
   transportType?: TransportType;
   tokens?: OAuthTokens;
   tokenExpiresAt?: number;
@@ -65,13 +65,13 @@ export class MCPClient {
   public oauthProvider: AgentsOAuthProvider | null = null; // Make public for session restoration
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private userId: string;
-  private serverId: string;
-  private sessionId?: string;
+  private serverId?: string; // Optional - loaded from session if not provided
+  private sessionId: string; // Required - primary key
   private serverName?: string;
-  private transportType: TransportType;
-  private serverUrl: string;
-  private callbackUrl: string;
-  private onRedirect: (url: string) => void;
+  private transportType: TransportType | undefined;
+  private serverUrl: string | undefined;
+  private callbackUrl: string | undefined;
+  private onRedirect: ((url: string) => void) | undefined;
   private tokens?: OAuthTokens;
   private tokenExpiresAt?: number;
   private clientInformation?: OAuthClientInformationFull;
@@ -112,6 +112,28 @@ export class MCPClient {
       return;
     }
 
+    // Load session data if any metadata is missing
+    if (!this.serverUrl || !this.callbackUrl || !this.serverId) {
+      console.log('[MCPClient] Missing connection metadata, loading from session store...');
+
+      const sessionData = await sessionStore.getSession(this.userId, this.sessionId);
+      if (!sessionData) {
+        throw new Error(`Session not found for sessionId: ${this.sessionId}`);
+      }
+
+      this.serverUrl = this.serverUrl || sessionData.serverUrl;
+      this.callbackUrl = this.callbackUrl || sessionData.callbackUrl;
+      this.transportType = this.transportType || sessionData.transportType;
+      this.serverName = this.serverName || sessionData.serverName;
+      this.serverId = this.serverId || sessionData.serverId || 'unknown';
+      this.headers = this.headers || sessionData.headers;
+      console.log('[MCPClient] Metadata loaded from session store');
+    }
+
+    if (!this.serverUrl || !this.callbackUrl || !this.serverId) {
+      throw new Error('Connection metadata (serverUrl, callbackUrl, serverId) missing and could not be loaded from session');
+    }
+
     const clientMetadata: OAuthClientMetadata = {
       client_name: 'MCP Assistant',
       redirect_uris: [this.callbackUrl],
@@ -128,16 +150,24 @@ export class MCPClient {
     };
 
     if (!this.oauthProvider) {
+      if (!this.serverId) {
+        throw new Error('serverId must be loaded from session before initializing OAuth provider');
+      }
+
       this.oauthProvider = new RedisOAuthClientProvider(
         this.userId,
         this.serverId,
+        this.sessionId,
         clientMetadata.client_name ?? 'MCP Assistant',
         this.callbackUrl,
         (redirectUrl: string) => {
           console.log('[OAuth Client] Redirect URI:', redirectUrl);
-          this.onRedirect(redirectUrl);
-        },
-        this.sessionId
+          if (this.onRedirect) {
+            this.onRedirect(redirectUrl);
+          } else {
+            console.warn('[OAuth Client] onRedirect called but not provided');
+          }
+        }
       );
 
       if (this.clientId) {
@@ -157,7 +187,8 @@ export class MCPClient {
 
     if (!this.transport) {
       const baseUrl = new URL(this.serverUrl);
-      if (this.transportType === 'sse') {
+      const tt = this.transportType || 'streamable_http';
+      if (tt === 'sse') {
         this.transport = new SSEClientTransport(baseUrl, {
           authProvider: this.oauthProvider!,
           ...(this.headers && { headers: this.headers }),
@@ -175,7 +206,7 @@ export class MCPClient {
    * Save the current session state to Redis
    */
   private async saveSession(active: boolean = true): Promise<void> {
-    if (!this.sessionId || !this.serverId) return;
+    if (!this.sessionId || !this.serverId || !this.serverUrl || !this.callbackUrl) return;
 
     console.log(`[MCPOAuthClient] Saving session (active=${active})`);
     await sessionStore.setClient({
@@ -184,7 +215,7 @@ export class MCPClient {
       serverName: this.serverName,
       serverUrl: this.serverUrl,
       callbackUrl: this.callbackUrl,
-      transportType: this.transportType,
+      transportType: this.transportType || 'streamable_http',
       userId: this.userId,
       active,
     });
@@ -218,7 +249,7 @@ export class MCPClient {
       await this.client.connect(this.transport);
 
       // Connection successful, ensure session is saved as active
-      await this.saveSession(true);
+      // await this.saveSession(true);
     } catch (error) {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
       if (error instanceof SDKUnauthorizedError ||
@@ -266,10 +297,11 @@ export class MCPClient {
       { capabilities: {} }
     );
 
-    const baseUrl = new URL(this.serverUrl);
+    const baseUrl = new URL(this.serverUrl!);
 
     // Create appropriate transport based on type
-    if (this.transportType === 'sse') {
+    const tt = this.transportType || 'streamable_http';
+    if (tt === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider!,
         ...(this.headers && { headers: this.headers }),
@@ -353,24 +385,28 @@ export class MCPClient {
       return false;
     }
 
+    console.log('[OAuth Client] Loading tokens from Redis...');
     const tokens = await this.oauthProvider.tokens();
     if (!tokens || !tokens.refresh_token) {
       console.error('[OAuth Client] Cannot refresh: No refresh token available');
       return false;
     }
+    console.log('[OAuth Client] Refresh token found');
 
+    console.log('[OAuth Client] Loading client information from Redis...');
     const clientInformation = await this.oauthProvider.clientInformation();
     if (!clientInformation) {
       console.error('[OAuth Client] Cannot refresh: No client information available');
       return false;
     }
+    console.log('[OAuth Client] Client information found:', clientInformation.client_id);
 
     try {
       console.log('[OAuth Client] Refreshing access token...');
 
       // Discover OAuth metadata from the server
-      const resourceMetadata = await discoverOAuthProtectedResourceMetadata(this.serverUrl);
-      const authServerUrl = resourceMetadata?.authorization_servers?.[0] || this.serverUrl;
+      const resourceMetadata = await discoverOAuthProtectedResourceMetadata(this.serverUrl!);
+      const authServerUrl = resourceMetadata?.authorization_servers?.[0] || this.serverUrl!;
       const authMetadata = await discoverAuthorizationServerMetadata(authServerUrl);
       console.log('[OAuth Client] Discovered OAuth metadata:', authMetadata);
       console.log('[OAuth Client] Discovered auth server URL:', authServerUrl);
@@ -417,14 +453,26 @@ export class MCPClient {
       return false;
     }
 
+    // Load tokens first - this restores tokenExpiresAt from Redis
+    const tokens = await this.oauthProvider.tokens();
+    if (!tokens) {
+      console.error('[OAuth Client] No tokens available');
+      return false;
+    }
+
     // Check if token is expired
     if (this.oauthProvider.isTokenExpired()) {
       console.log('[OAuth Client] Token expired, attempting refresh...');
-      await this.refreshToken()
-      console.log('[OAuth Client] after refresh token method');
+      const refreshSuccess = await this.refreshToken();
+      if (!refreshSuccess) {
+        console.error('[OAuth Client] Token refresh failed');
+        return false;
+      }
+      console.log('[OAuth Client] Token refresh succeeded');
       return true;
     }
 
+    console.log('[OAuth Client] Token is still valid');
     return true; // Token is still valid
   }
 
@@ -449,9 +497,10 @@ export class MCPClient {
       { capabilities: {} }
     );
 
-    const baseUrl = new URL(this.serverUrl);
+    const baseUrl = new URL(this.serverUrl!);
 
-    if (this.transportType === 'sse') {
+    const tt = this.transportType || 'streamable_http';
+    if (tt === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
       });
@@ -462,6 +511,27 @@ export class MCPClient {
     }
 
     await this.client.connect(this.transport);
+  }
+
+  /**
+   * Complete cleanup of the session and all associated OAuth data in Redis
+   */
+  async clearSession(): Promise<void> {
+    // Attempt to initialize to get the provider if we don't have it
+    try {
+      await this.ensureInitialized();
+    } catch (error) {
+      console.warn('[MCPClient] Could not initialize during clearSession, proceeding with partial cleanup:', error);
+    }
+
+    if (this.oauthProvider) {
+      console.log(`[MCPClient] Invalidating OAuth credentials for ${this.serverId}`);
+      await (this.oauthProvider as any).invalidateCredentials('all');
+    }
+
+    console.log(`[MCPClient] Removing session for ${this.serverId}`);
+    await sessionStore.removeSession(this.userId, this.serverId);
+    this.disconnect();
   }
 
   /**
@@ -488,21 +558,21 @@ export class MCPClient {
    * Get the server URL
    */
   getServerUrl(): string {
-    return this.serverUrl;
+    return this.serverUrl || '';
   }
 
   /**
    * Get the callback URL
    */
   getCallbackUrl(): string {
-    return this.callbackUrl;
+    return this.callbackUrl || '';
   }
 
   /**
    * Get the transport type
    */
   getTransportType(): TransportType {
-    return this.transportType;
+    return this.transportType || 'streamable_http';
   }
 
   /**

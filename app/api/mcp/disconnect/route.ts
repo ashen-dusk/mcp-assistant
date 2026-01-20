@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/mcp/session-store';
 import { createClient } from "@/lib/supabase/server";
-import { RedisOAuthClientProvider } from '@/lib/mcp/redis-oauth-client-provider';
+import { MCPClient } from '@/lib/mcp/oauth-client';
 
 interface DisconnectRequestBody {
   sessionId: string;
@@ -48,38 +48,13 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
 
-    // Extract serverId from sessionId (format: sessionId.serverId)
-    const parts = sessionId.split('.');
-    const serverId = parts.length > 1 ? parts.slice(1).join('.') : sessionId;
+    // Create MCP client - it will load serverId from session
+    const client = new MCPClient({
+      userId,
+      sessionId,
+    });
 
-    // Check if session exists
-    const sessionData = await sessionStore.getSession(userId, serverId);
-    if (!sessionData) {
-      return NextResponse.json(
-        { error: 'Invalid session or already disconnected' },
-        { status: 404 }
-      );
-    }
-
-    // Clean up OAuth state from RedisOAuthClientProvider
-    if (sessionData.serverId && sessionData.userId) {
-      try {
-        const provider = new RedisOAuthClientProvider(
-          sessionData.userId,
-          sessionData.serverId,
-          'MCP Assistant',
-          sessionData.callbackUrl,
-          undefined,
-          sessionId
-        );
-        await provider.invalidateCredentials('all');
-      } catch (error) {
-        console.error('Failed to clean up OAuth state:', error);
-      }
-    }
-
-    // Remove session from session store
-    await sessionStore.removeSession(userId, serverId);
+    await client.clearSession();
 
     return NextResponse.json({
       success: true,

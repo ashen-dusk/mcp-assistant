@@ -18,32 +18,22 @@ async function handleCallback(request: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
 
-  // Parse state to extract all data (parse once, use everywhere)
-  let sessionId: string | undefined = undefined;
-  let serverId: string | undefined = undefined;
-  let serverName: string | undefined = undefined;
-  let serverUrl: string | undefined = undefined;
-  let sourceUrl: string = '/mcp'; // Default fallback
+  // Parse state - it's the sessionId
+  const sessionId = state;
+  const sourceUrl = '/auth/callback/success'; // Default fallback
 
-  if (state) {
-    try {
-      const stateData = JSON.parse(state);
-      sessionId = stateData.sessionId;
-      serverId = stateData.serverId;
-      serverName = stateData.serverName;
-      serverUrl = stateData.serverUrl;
-      sourceUrl = stateData.sourceUrl || '/mcp';
-    } catch {
-      // Fallback: treat state as plain sessionId for backward compatibility
-      sessionId = state;
-    }
+  if (!sessionId) {
+    const errorUrl = new URL(sourceUrl, getAppUrl());
+    errorUrl.searchParams.set('step', 'error');
+    errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
+    return NextResponse.redirect(errorUrl);
   }
+
+  console.log('[Callback] Received state (sessionId):', sessionId);
 
   // Check if OAuth provider returned an error
   if (error) {
     const errorUrl = new URL(sourceUrl, getAppUrl());
-    if (serverName) errorUrl.searchParams.set('server', serverName);
-    if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
     errorUrl.searchParams.set('step', 'error');
     errorUrl.searchParams.set('error', errorDescription || error);
     return NextResponse.redirect(errorUrl);
@@ -51,19 +41,8 @@ async function handleCallback(request: NextRequest) {
 
   if (!code) {
     const errorUrl = new URL(sourceUrl, getAppUrl());
-    if (serverName) errorUrl.searchParams.set('server', serverName);
-    if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
     errorUrl.searchParams.set('step', 'error');
     errorUrl.searchParams.set('error', 'Authorization code is required');
-    return NextResponse.redirect(errorUrl);
-  }
-
-  if (!state || !sessionId) {
-    const errorUrl = new URL(sourceUrl, getAppUrl());
-    if (serverName) errorUrl.searchParams.set('server', serverName);
-    if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
-    errorUrl.searchParams.set('step', 'error');
-    errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
     return NextResponse.redirect(errorUrl);
   }
 
@@ -74,8 +53,6 @@ async function handleCallback(request: NextRequest) {
 
     if (!userSession?.user) {
       const errorUrl = new URL(sourceUrl, getAppUrl());
-      if (serverName) errorUrl.searchParams.set('server', serverName);
-      if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
       errorUrl.searchParams.set('step', 'error');
       errorUrl.searchParams.set('error', 'Unauthorized - Please log in');
       return NextResponse.redirect(errorUrl);
@@ -83,34 +60,13 @@ async function handleCallback(request: NextRequest) {
 
     const userId = userSession.user.id;
 
-    if (!serverId) {
-      const errorUrl = new URL(sourceUrl, getAppUrl());
-      errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Missing serverId in OAuth state');
-      return NextResponse.redirect(errorUrl);
-    }
-
-    // Retrieve session data to get serverUrl and callbackUrl
-    const sessionData = await sessionStore.getSession(userId, serverId);
-    if (!sessionData) {
-      const errorUrl = new URL(sourceUrl, getAppUrl());
-      if (serverName) errorUrl.searchParams.set('server', serverName);
-      errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Invalid session or session expired');
-      return NextResponse.redirect(errorUrl);
-    }
-
-    // Create MCP client and restore from session
+    // Create MCP client - it will load serverId from session
     const client = new MCPClient({
-      serverUrl: sessionData.serverUrl,
-      callbackUrl: sessionData.callbackUrl,
       onRedirect: (url) => {
         console.log('[Callback] Redirect requested:', url);
       },
       userId,
-      serverId,
       sessionId,
-      transportType: sessionData.transportType,
     });
 
 
@@ -125,15 +81,6 @@ async function handleCallback(request: NextRequest) {
 
     // Redirect back to source page with success parameters
     const successUrl = new URL(sourceUrl, getAppUrl());
-    if (serverId) {
-      successUrl.searchParams.set('serverId', serverId);
-    }
-    if (serverName) {
-      successUrl.searchParams.set('server', serverName);
-    }
-    if (serverUrl) {
-      successUrl.searchParams.set('serverUrl', serverUrl);
-    }
     successUrl.searchParams.set('sessionId', sessionId);
     successUrl.searchParams.set('step', 'success');
 
@@ -141,12 +88,6 @@ async function handleCallback(request: NextRequest) {
   } catch (error: unknown) {
     // Handle any errors during OAuth completion
     const errorUrl = new URL(sourceUrl, getAppUrl());
-    if (serverName) {
-      errorUrl.searchParams.set('server', serverName);
-    }
-    if (serverUrl) {
-      errorUrl.searchParams.set('serverUrl', serverUrl);
-    }
     errorUrl.searchParams.set('step', 'error');
 
     if (error instanceof Error) {

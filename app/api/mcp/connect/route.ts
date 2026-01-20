@@ -72,16 +72,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a new session ID for this connection attempt
-    // We use the serverUrl (or a hash of it) + uuid as the serverId for now
-    // In a real app, you'd probably look up the serverId from a database
+    // Generate a unique session ID for this connection attempt
+    const sessionId = nanoid();
+
+    // serverId is for database lookup (optional), separate from sessionId
     const effectiveServerId = serverId || serverUrl.replace(/[^a-zA-Z0-9]/g, '_');
-    const sessionId = `${nanoid()}.${effectiveServerId}`; // Use nanoid for sessionId
 
     let authUrl: string | null = null;
 
     // Create MCP client with redirect handler and state data
-    const client = new MCPClient({ // Changed MCPOAuthClient to MCPClient
+    const client = new MCPClient({
       serverUrl,
       callbackUrl,
       onRedirect: (redirectUrl: string) => {
