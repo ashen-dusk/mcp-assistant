@@ -84,38 +84,69 @@ async function handleCallback(request: NextRequest) {
   }
 
   try {
+    // Get authenticated user
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data: { session: userSession } } = await supabase.auth.getSession();
 
-    // Retrieve client from session store
-    const client = await sessionStore.getClient(sessionId);
-    if (!client) {
+    if (!userSession?.user) {
       const errorUrl = new URL(sourceUrl, getAppUrl());
-      if (serverName) {
-        errorUrl.searchParams.set('server', serverName);
-      }
+      if (serverName) errorUrl.searchParams.set('server', serverName);
+      if (serverUrl) errorUrl.searchParams.set('serverUrl', serverUrl);
       errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Invalid session ID or session expired');
+      errorUrl.searchParams.set('error', 'Unauthorized - Please log in');
       return NextResponse.redirect(errorUrl);
     }
 
-    // Retrieve session data to preserve userId
-    const sessionData = await sessionStore.getSession(sessionId);
-    const userId = sessionData?.userId;
+    const userId = userSession.user.id;
+
+    if (!serverId) {
+      const errorUrl = new URL(sourceUrl, getAppUrl());
+      errorUrl.searchParams.set('step', 'error');
+      errorUrl.searchParams.set('error', 'Missing serverId in OAuth state');
+      return NextResponse.redirect(errorUrl);
+    }
+
+    // Retrieve session data to get serverUrl and callbackUrl
+    const sessionData = await sessionStore.getSession(userId, serverId);
+    if (!sessionData) {
+      const errorUrl = new URL(sourceUrl, getAppUrl());
+      if (serverName) errorUrl.searchParams.set('server', serverName);
+      errorUrl.searchParams.set('step', 'error');
+      errorUrl.searchParams.set('error', 'Invalid session or session expired');
+      return NextResponse.redirect(errorUrl);
+    }
+
+    // Create MCPOAuthClient with RedisOAuthClientProvider
+    const { MCPOAuthClient } = await import('@/lib/mcp/oauth-client');
+    const client = new MCPOAuthClient({
+      serverUrl: sessionData.serverUrl,
+      callbackUrl: sessionData.callbackUrl,
+      onRedirect: () => { },
+      userId,
+      serverId: serverId,
+      sessionId,
+      transportType: sessionData.transportType,
+    });
 
     // Complete OAuth authorization with the code
+    console.log('[Callback] Finishing OAuth with code...');
     await client.finishAuth(code);
+    console.log('[Callback] OAuth finished successfully');
 
-    // Re-save client with updated OAuth tokens (important for serverless!)
+    // Update session to mark as active
+    console.log('[Callback] Updating session to active=true');
     await sessionStore.setClient({
       sessionId,
       serverId,
       serverName,
-      client,
-      serverUrl: serverUrl || client.getServerUrl(),
-      callbackUrl: client.getCallbackUrl(),
-      transportType: client.getTransportType(),
+      serverUrl: sessionData.serverUrl,
+      callbackUrl: sessionData.callbackUrl,
+      transportType: sessionData.transportType,
       userId,
       active: true
     });
+    console.log('[Callback] Session updated successfully');
 
     // Redirect back to source page with success parameters
     const successUrl = new URL(sourceUrl, getAppUrl());

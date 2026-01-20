@@ -84,15 +84,12 @@ export async function POST(request: NextRequest) {
       onRedirect: (redirectUrl: string) => {
         authUrl = redirectUrl;
       },
+      userId,
+      serverId: serverId || sessionId, // Use serverId if provided, otherwise use sessionId
       sessionId: stateData,
       transportType,
       clientId,
-      clientSecret,
-      onSaveTokens: (tokens) => {
-        sessionStore.updateTokens(sessionId, tokens).catch(err => {
-          console.error(`❌ Failed to update tokens in Redis for session ${sessionId}:`, err);
-        });
-      }
+      clientSecret
     });
 
     try {
@@ -100,12 +97,11 @@ export async function POST(request: NextRequest) {
       console.log('[Connect API] Attempting to connect to:', serverUrl);
       await client.connect();
 
-      // Connection successful, save client to session store with full config
+      // Connection successful, save session metadata 
       await sessionStore.setClient({
         sessionId,
         serverId,
         serverName,
-        client,
         serverUrl,
         callbackUrl,
         transportType,
@@ -127,7 +123,6 @@ export async function POST(request: NextRequest) {
             sessionId,
             serverId,
             serverName,
-            client,
             serverUrl,
             callbackUrl,
             transportType,

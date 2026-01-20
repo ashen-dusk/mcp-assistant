@@ -16,12 +16,13 @@ export interface SessionData {
   transportType: 'sse' | 'streamable_http';
   createdAt: number;
   active: boolean;
-  tokens?: OAuthTokens;
-  tokenExpiresAt?: number; // Track when the token expires (timestamp in ms)
-  clientInformation?: OAuthClientInformationMixed;
-  codeVerifier?: string;
   userId?: string;
-  headers?: Record<string, string>; // HTTP headers for the connection
+  headers?: Record<string, string>;
+  // OAuth data (consolidated)
+  clientInformation?: OAuthClientInformationMixed;
+  tokens?: OAuthTokens;
+  codeVerifier?: string;
+  clientId?: string;
 }
 
 export interface SetClientOptions {
@@ -50,26 +51,24 @@ const rest = customAlphabet(
 );
 
 export class SessionStore {
-  // private redis: Redis;
   private readonly SESSION_TTL = 43200; // 12 hours
-  private readonly KEY_PREFIX = 'mcp:session:';
-  private readonly USER_PREFIX = 'mcp:user:';
+  private readonly KEY_PREFIX = 'mcp:server:';
 
   constructor(private redis: Redis) {
 
   }
 
-  private getSessionKey(sessionId: string): string {
-    return `${this.KEY_PREFIX}${sessionId}`;
+  private getSessionKey(userId: string, serverId: string): string {
+    return `${this.KEY_PREFIX}${userId}:${serverId}`;
   }
 
   private getUserKey(userId: string): string {
-    return `${this.USER_PREFIX}${userId}:sessions`;
+    return `mcp:user:${userId}:servers`;
   }
 
   generateSessionId(): string {
     // must start with letter for (OpenAI compatibility)
-    return firstChar() + rest();                                                                
+    return firstChar() + rest();
   }
 
   async setClient(options: SetClientOptions): Promise<void> {
@@ -77,7 +76,6 @@ export class SessionStore {
       sessionId,
       serverId,
       serverName,
-      client,
       serverUrl,
       callbackUrl,
       transportType = 'streamable_http',
@@ -87,80 +85,53 @@ export class SessionStore {
     } = options;
 
     try {
-      const sessionKey = this.getSessionKey(sessionId);
-
-      let tokens: OAuthTokens | undefined;
-      let clientInformation: OAuthClientInformationMixed | undefined;
-      let codeVerifier: string | undefined;
-      let resolvedServerUrl = serverUrl;
-      let resolvedCallbackUrl = callbackUrl;
-
-      if (client) {
-        try {
-          const oauthProvider = client.oauthProvider;
-          if (oauthProvider) {
-            tokens = oauthProvider.tokens();
-            clientInformation = oauthProvider.clientInformation();
-            try {
-              codeVerifier = oauthProvider.codeVerifier();
-            } catch { }
-          }
-        } catch { }
-
-        resolvedServerUrl ||= client.getServerUrl();
-        resolvedCallbackUrl ||= client.getCallbackUrl();
+      if (!serverUrl || !callbackUrl) {
+        throw new Error('serverUrl and callbackUrl must be provided');
       }
 
-      if (!resolvedServerUrl || !resolvedCallbackUrl) {
-        throw new Error(
-          'serverUrl and callbackUrl must be provided (either explicitly or via client)'
-        );
+      if (!userId || !serverId) {
+        throw new Error('userId and serverId are required for session storage');
       }
 
-      // Calculate token expiration if tokens are provided
-      let tokenExpiresAt: number | undefined;
-      if (tokens && tokens.expires_in) {
-        const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
-        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
-      }
+      const sessionKey = this.getSessionKey(userId, serverId);
+
+      // Load existing data to preserve OAuth tokens
+      const existingDataStr = await this.redis.get(sessionKey);
+      const existingData = existingDataStr ? JSON.parse(existingDataStr) : {};
 
       const sessionData: SessionData = {
+        ...existingData, // Preserve existing data (including OAuth tokens)
         sessionId,
         serverId,
         serverName,
-        serverUrl: resolvedServerUrl,
-        callbackUrl: resolvedCallbackUrl,
+        serverUrl,
+        callbackUrl,
         transportType,
-        createdAt: Date.now(),
+        createdAt: existingData.createdAt || Date.now(), // Keep original creation time
         active,
-        tokens,
-        tokenExpiresAt,
-        clientInformation,
-        codeVerifier,
         userId,
-        headers, // Store headers in session
+        headers,
       };
 
       await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
 
-      if (userId) {
-        const userKey = this.getUserKey(userId);
-        await this.redis.sadd(userKey, sessionId);
-      }
+      // Track server IDs for this user
+      const userKey = this.getUserKey(userId);
+      await this.redis.sadd(userKey, serverId);
 
-      console.log(`✅ Redis SET session data: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
+      console.log(`✅ Redis SET: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
     } catch (error) {
       console.error('❌ Failed to store session in Redis:', error);
       throw error;
     }
   }
 
-  async getSession(sessionId: string): Promise<SessionData | null> {
+  async getSession(userId: string, serverId: string): Promise<SessionData | null> {
     try {
-      const sessionKey = this.getSessionKey(sessionId);
+      const sessionKey = this.getSessionKey(userId, serverId);
       const sessionDataStr = await this.redis.get(sessionKey);
       if (!sessionDataStr) {
-        console.log(`❓ Session not found in Redis: ${sessionKey}`);
+        console.log(`❓ Session not found: ${sessionKey}`);
         return null;
       }
 
@@ -168,84 +139,8 @@ export class SessionStore {
       await this.redis.expire(sessionKey, this.SESSION_TTL);
       return sessionData;
     } catch (error) {
-      console.error('❌ Failed to get session from Redis:', error);
+      console.error('❌ Failed to get session:', error);
       return null;
-    }
-  }
-
-  async getClient(sessionId: string): Promise<MCPOAuthClient | null> {
-    const sessionData = await this.getSession(sessionId);
-    if (!sessionData) return null;
-
-    // Create client with same parameters
-    const client = new MCPOAuthClient({
-      serverUrl: sessionData.serverUrl,
-      callbackUrl: sessionData.callbackUrl,
-      onRedirect: () => { },
-      sessionId: sessionData.sessionId,
-      transportType: sessionData.transportType,
-      tokens: sessionData.tokens,
-      tokenExpiresAt: sessionData.tokenExpiresAt,
-      clientInformation: sessionData.clientInformation as any,
-      onSaveTokens: (tokens: OAuthTokens) => {
-        console.log(`✅ [onSaveTokens] onSaveTokens ${JSON.stringify(tokens)}`);
-        this.updateTokens(sessionData.sessionId, tokens).catch(err => {
-          console.error(`❌ [onSaveTokens] Failed to update tokens in Redis for session ${sessionData.sessionId}:`, err);
-        });
-      }
-    });
-
-    // If no tokens, this is a mid-OAuth flow session
-    if (!sessionData.tokens) {
-      console.log(`⚠️ Session has no tokens (mid-OAuth flow): ${sessionData.sessionId}`);
-
-      // Connect to initialize OAuth provider
-      await client.connect().catch((err) => {
-        console.log(
-          `🔐 Client awaiting OAuth (expected mid-flow): ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
-
-      // Restore client information and code verifier for OAuth flow
-      const oauthProvider = client.oauthProvider;
-      if (oauthProvider) {
-        if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
-          oauthProvider.saveClientInformation(sessionData.clientInformation);
-          console.log(`✅ Restored client info for mid-OAuth: ${sessionData.clientInformation.client_id}`);
-        }
-        if (sessionData.codeVerifier) {
-          oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
-          console.log(`✅ Restored code verifier for mid-OAuth`);
-        }
-      }
-
-      return client;
-    }
-
-    // Session has tokens - restore authenticated session
-    console.log(`🔐 Restoring OAuth session: ${sessionData.sessionId}`);
-
-    // Connect to initialize OAuth provider
-    try {
-
-      await client.connect();
-      const oauthProvider = client.oauthProvider;
-      if (!oauthProvider) {
-        throw new Error('OAuth provider not initialized');
-      }
-      // similarly we can add additional signature in MCPOAuthClient class to save the client information and code verifier (for now we are doing this way)
-      if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
-        oauthProvider.saveClientInformation(sessionData.clientInformation);
-      }
-      if (sessionData.codeVerifier) {
-        oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
-      }
-      return client;
-    }
-    catch (err) {
-      this.removeSession(sessionData.sessionId);
-      console.error(`❌ Failed to restore OAuth session for ${sessionData.sessionId}:`, err);
-      throw err;
     }
   }
 
@@ -260,110 +155,51 @@ export class SessionStore {
     }
   }
 
-  // TODO: needs to be optmized
   async getUserSessionsData(userId: string): Promise<SessionData[]> {
-  const userKey = this.getUserKey(userId);
+    const userKey = this.getUserKey(userId);
 
-  try {
-    const sessionIds = await this.redis.smembers(userKey);
-    if (sessionIds.length === 0) return [];
-
-    const validSessions: SessionData[] = [];
-    const orphanedSessionIds: string[] = [];
-
-    /**
-     * Fetch sessions in parallel
-     */
-    const results = await Promise.all(
-      sessionIds.map(async (sessionId) => {
-        const sessionKey = this.getSessionKey(sessionId);
-        const data = await this.redis.get(sessionKey);
-
-        // ❌ Orphaned session ID (no corresponding data)
-        if (!data) {
-          orphanedSessionIds.push(sessionId);
-          return null;
-        }
-
-        return JSON.parse(data) as SessionData;
-      })
-    );
-
-    for (const session of results) {
-      if (session) validSessions.push(session);
-    }
-
-    /**
-     * 🧹 Remove orphaned session IDs from user's set
-     */
-    if (orphanedSessionIds.length > 0) {
-      await this.redis.srem(userKey, ...orphanedSessionIds);
-      console.warn(
-        `🧹 Removed ${orphanedSessionIds.length} orphaned MCP session IDs for user ${userId}`
-      );
-    }
-
-    return validSessions;
-  } catch (error) {
-    console.error(
-      `❌ Failed to get user sessions from Redis for user ${userId}:`,
-      error
-    );
-    return [];
-  }
-}
-
-  /**
-   * Update tokens for an existing session
-   * Used after token refresh to persist new tokens
-   */
-  async updateTokens(sessionId: string, tokens: OAuthTokens): Promise<void> {
     try {
-      const sessionData = await this.getSession(sessionId);
-      if (!sessionData) {
-        console.warn(`Cannot update tokens: Session ${sessionId} not found`);
-        return;
-      }
+      const serverIds = await this.redis.smembers(userKey);
+      if (serverIds.length === 0) return [];
 
-      // // Calculate token expiration
-      let tokenExpiresAt: number | undefined;
-      if (tokens.expires_in) {
-        // const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
-        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000);
-      }
+      const validSessions: SessionData[] = [];
 
-      // // Update session data with new tokens
-      sessionData.tokens = tokens;
-      sessionData.tokenExpiresAt = tokenExpiresAt;
+      const results = await Promise.all(
+        serverIds.map(async (serverId) => {
+          const sessionKey = this.getSessionKey(userId, serverId);
+          const data = await this.redis.get(sessionKey);
 
-      const sessionKey = this.getSessionKey(sessionId);
-      await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
-      console.log(`✅ Updated tokens for session: ${sessionId}`);
-    } catch (error) {
-      console.error('❌ Failed to update tokens in Redis:', error);
-      throw error;
-    }
-  }
-
-  async removeSession(sessionId: string): Promise<void> {
-    try {
-      const sessionKey = this.getSessionKey(sessionId);
-
-      try {
-        const sessionDataStr = await this.redis.get(sessionKey);
-        if (sessionDataStr) {
-          const sessionData: SessionData = JSON.parse(sessionDataStr);
-          if (sessionData.userId) {
-            const userKey = this.getUserKey(sessionData.userId);
-            await this.redis.srem(userKey, sessionId);
+          if (!data) {
+            return null;
           }
+
+          return JSON.parse(data) as SessionData;
+        })
+      );
+
+      for (const sessionData of results) {
+        if (sessionData) {
+          validSessions.push(sessionData);
         }
-      } catch (e) {
-        console.error(`Error checking userId during removeSession:`, e);
       }
+
+      return validSessions;
+    } catch (error) {
+      console.error(`❌ Failed to get user sessions for ${userId}:`, error);
+      return [];
+    }
+  }
+
+  async removeSession(userId: string, serverId: string): Promise<void> {
+    try {
+      const sessionKey = this.getSessionKey(userId, serverId);
+
+      // Remove server tracking for user
+      const userKey = this.getUserKey(userId);
+      await this.redis.srem(userKey, serverId);
 
       await this.redis.del(sessionKey);
-      console.log(`✅ Removed session: ${sessionId}`);
+      console.log(`✅ Removed session: ${sessionKey}`);
     } catch (error) {
       console.error('❌ Failed to remove session from Redis:', error);
     }

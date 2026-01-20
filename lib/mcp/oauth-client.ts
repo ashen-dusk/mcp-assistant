@@ -18,6 +18,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InMemoryOAuthClientProvider } from './oauth-provider';
+import { RedisOAuthClientProvider, AgentsOAuthProvider } from './redis-oauth-client-provider';
 
 /**
  * Supported MCP transport types
@@ -28,6 +29,8 @@ export interface MCPOAuthClientOptions {
   serverUrl: string;
   callbackUrl: string;
   onRedirect: (url: string) => void;
+  userId: string;
+  serverId: string;
   sessionId?: string;
   transportType?: TransportType;
   tokens?: OAuthTokens;
@@ -57,8 +60,10 @@ export class UnauthorizedError extends Error {
  */
 export class MCPOAuthClient {
   private client: Client | null = null;
-  public oauthProvider: InMemoryOAuthClientProvider | null = null; // Make public for session restoration
+  public oauthProvider: AgentsOAuthProvider | null = null; // Make public for session restoration
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
+  private userId: string;
+  private serverId: string;
   private sessionId?: string;
   private transportType: TransportType;
   private serverUrl: string;
@@ -78,6 +83,8 @@ export class MCPOAuthClient {
     this.serverUrl = options.serverUrl;
     this.callbackUrl = options.callbackUrl;
     this.onRedirect = options.onRedirect;
+    this.userId = options.userId;
+    this.serverId = options.serverId;
     this.sessionId = options.sessionId;
     this.transportType = options.transportType || 'streamable_http';
     this.tokens = options.tokens;
@@ -92,57 +99,78 @@ export class MCPOAuthClient {
   }
 
   /**
+   * Ensure that the client, transport, and provider are correctly initialized.
+   * This is necessary because in serverless environments, the client may be
+   * recreated for each request and needs to be set up from stored state.
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.client && this.oauthProvider && this.transport) {
+      return;
+    }
+
+    const clientMetadata: OAuthClientMetadata = {
+      client_name: 'MCP Assistant',
+      redirect_uris: [this.callbackUrl],
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      token_endpoint_auth_method: 'client_secret_basic',
+      client_uri: 'https://mcp-assistant.in',
+      logo_uri: 'https://mcp-assistant.in/logo.png',
+      policy_uri: 'https://mcp-assistant.in/privacy',
+      software_id: 'mcp-assistant',
+      software_version: '0.2.1',
+      ...(this.clientId ? { client_id: this.clientId } : {}),
+      ...(this.clientSecret ? { client_secret: this.clientSecret } : {}),
+    };
+
+    if (!this.oauthProvider) {
+      this.oauthProvider = new RedisOAuthClientProvider(
+        this.userId,
+        this.serverId,
+        clientMetadata.client_name ?? 'MCP Assistant',
+        this.callbackUrl,
+        (redirectUrl: string) => {
+          console.log('[OAuth Client] Redirect URI:', redirectUrl);
+          this.onRedirect(redirectUrl);
+        },
+        this.sessionId
+      );
+    }
+
+    if (!this.client) {
+      this.client = new Client(
+        {
+          name: 'mcp-assistant-oauth-client',
+          version: '2.0',
+        },
+        { capabilities: {} }
+      );
+    }
+
+    if (!this.transport) {
+      const baseUrl = new URL(this.serverUrl);
+      if (this.transportType === 'sse') {
+        this.transport = new SSEClientTransport(baseUrl, {
+          authProvider: this.oauthProvider!,
+          ...(this.headers && { headers: this.headers }),
+        });
+      } else {
+        this.transport = new StreamableHTTPClientTransport(baseUrl, {
+          authProvider: this.oauthProvider!,
+          ...(this.headers && { headers: this.headers }),
+        });
+      }
+    }
+  }
+
+  /**
    * Connect to the MCP server
    *
    * @throws {UnauthorizedError} If OAuth authorization is required
    * @throws {Error} For other connection errors
    */
   async connect(): Promise<void> {
-    const clientMetadata: OAuthClientMetadata = {
-      client_name: 'MCP Assistant',
-      redirect_uris: [this.callbackUrl],
-      grant_types: ['authorization_code', 'refresh_token'],
-      response_types: ['code'],
-      token_endpoint_auth_method: 'client_secret_basic', // or 'client_secret_post'
-      client_uri: 'https://mcp-assistant.in',
-      logo_uri: 'https://mcp-assistant.in/logo.png',
-
-      // Legal
-      // tos_uri: 'https://mcp-assistant.in/terms',
-      policy_uri: 'https://mcp-assistant.in/privacy',
-
-      // Optional software metadata (DCR)
-      software_id: 'mcp-assistant',
-      software_version: '0.2.1',
-
-      // Use provided credentials if available
-      ...(this.clientId ? { client_id: this.clientId } : {}),
-      ...(this.clientSecret ? { client_secret: this.clientSecret } : {}),
-    };
-
-    this.oauthProvider = new InMemoryOAuthClientProvider(
-      this.callbackUrl,
-      clientMetadata,
-      (redirectUrl: URL) => {
-        console.log('[OAuth Client] Redirect URI:', redirectUrl.toString());
-
-        this.onRedirect(redirectUrl.toString());
-      },
-      this.sessionId, // Pass sessionId as the state parameter
-      this.tokens,
-      this.clientInformation,
-      this.tokenExpiresAt,
-      this.onSaveTokens
-    );
-
-    this.client = new Client(
-      {
-        name: 'mcp-assistant-oauth-client',
-        version: '2.0',
-      },
-      { capabilities: {} }
-    );
-
+    await this.ensureInitialized();
     await this.attemptConnection();
   }
 
@@ -150,26 +178,14 @@ export class MCPOAuthClient {
    * Attempt to establish connection with the MCP server
    */
   private async attemptConnection(): Promise<void> {
-    if (!this.client || !this.oauthProvider) {
-      throw new Error('Client not initialized');
-    }
+    await this.ensureInitialized();
 
-    const baseUrl = new URL(this.serverUrl);
-
-    // Create appropriate transport based on type
-    if (this.transportType === 'sse') {
-      this.transport = new SSEClientTransport(baseUrl, {
-        authProvider: this.oauthProvider,
-        ...(this.headers && { headers: this.headers }),
-      });
-    } else {
-      this.transport = new StreamableHTTPClientTransport(baseUrl, {
-        authProvider: this.oauthProvider,
-        ...(this.headers && { headers: this.headers }),
-      });
+    if (!this.client || !this.transport) {
+      throw new Error('Client or transport not initialized');
     }
 
     try {
+      // Load existing tokens from Redis before attempting connection
       await this.getValidTokens();
       await this.client.connect(this.transport);
     } catch (error) {
@@ -189,8 +205,10 @@ export class MCPOAuthClient {
    * @param authCode - Authorization code from OAuth callback
    */
   async finishAuth(authCode: string): Promise<void> {
-    if (!this.oauthProvider) {
-      throw new Error('OAuth provider not initialized');
+    await this.ensureInitialized();
+
+    if (!this.oauthProvider || !this.transport) {
+      throw new Error('OAuth provider or transport not initialized');
     }
 
     console.log('[OAuth Client] Finishing OAuth authorization...');
@@ -219,12 +237,12 @@ export class MCPOAuthClient {
     // Create appropriate transport based on type
     if (this.transportType === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
-        authProvider: this.oauthProvider,
+        authProvider: this.oauthProvider!,
         ...(this.headers && { headers: this.headers }),
       });
     } else {
       this.transport = new StreamableHTTPClientTransport(baseUrl, {
-        authProvider: this.oauthProvider,
+        authProvider: this.oauthProvider!,
         ...(this.headers && { headers: this.headers }),
       });
     }
@@ -291,18 +309,20 @@ export class MCPOAuthClient {
    * @returns True if refresh was successful, false otherwise
    */
   async refreshToken(): Promise<boolean> {
+    await this.ensureInitialized();
+
     if (!this.oauthProvider) {
       console.error('[OAuth Client] Cannot refresh: OAuth provider not initialized');
       return false;
     }
 
-    const tokens = this.oauthProvider.tokens();
+    const tokens = await this.oauthProvider.tokens();
     if (!tokens || !tokens.refresh_token) {
       console.error('[OAuth Client] Cannot refresh: No refresh token available');
       return false;
     }
 
-    const clientInformation = this.oauthProvider.clientInformation();
+    const clientInformation = await this.oauthProvider.clientInformation();
     if (!clientInformation) {
       console.error('[OAuth Client] Cannot refresh: No client information available');
       return false;
@@ -328,7 +348,7 @@ export class MCPOAuthClient {
       });
 
       // Save the new tokens
-      this.oauthProvider.saveTokens(newTokens);
+      await this.oauthProvider.saveTokens(newTokens);
 
       /** saving tokens in oauthProvider (handling the case where server doesnt expose oauthprotected resource metadata which is required during initial authorization and refreshing tokens) */
 
@@ -353,6 +373,8 @@ export class MCPOAuthClient {
    */
   async getValidTokens(): Promise<boolean> {
     console.log('[OAuth Client] Checking token validity...');
+    await this.ensureInitialized();
+
     if (!this.oauthProvider) {
       console.error('[OAuth Client] Cannot get valid tokens: OAuth provider not initialized');
       return false;
@@ -375,6 +397,8 @@ export class MCPOAuthClient {
    * Recreates client and transport without creating a new OAuth provider
    */
   async reconnect(): Promise<void> {
+    await this.ensureInitialized();
+
     if (!this.oauthProvider) {
       throw new Error('OAuth provider not initialized');
     }
