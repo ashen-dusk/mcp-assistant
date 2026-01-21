@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ServerIcon } from '../common/ServerIcon';
+import { openAuthPopup } from '@/lib/auth-popup-utils';
 
 interface MCPConnectionApprovalProps {
   serverName: string;
@@ -55,84 +56,32 @@ export function MCPConnectionApproval({
       if (authUrl) {
         console.log('Opening popup with URL:', authUrl);
 
-        // Open popup window with specific dimensions
-        const width = 600;
-        const height = 700;
-        const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
-        const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
-
         try {
-          const popup = window.open(
-            authUrl,
-            'oauth-popup',
-            `width=${width},height=${height},left=${left},top=${top},popup=yes,toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes`
-          );
+          // Use reusable auth popup utility
+          const authResult = await openAuthPopup({ url: authUrl });
 
-          if (popup && !popup.closed) {
-            console.log('Popup opened successfully');
-            popup.focus();
-
-            let popupCheckInterval: NodeJS.Timeout | null = null;
-
-            const handleMessage = (event: MessageEvent) => {
-              // Verify the message is from our domain
-              if (event.origin !== window.location.origin) {
-                console.warn('Ignoring message from unknown origin:', event.origin);
-                return;
-              }
-
-              console.log('Received postMessage:', event.data);
-
-              if (event.data.type === 'mcp-auth-success') {
-                console.log('Auth success, approving tool');
-
-                // Clean up listeners and interval
-                if (popupCheckInterval) {
-                  clearInterval(popupCheckInterval);
-                }
-                window.removeEventListener('message', handleMessage);
-                setIsLoading(false);
-
-                // Approve the tool - connection already established in Redis
-                // Tool's execute function will verify the connection
-                onApprove({
-                  sessionId: event.data.sessionId || sessionId,
-                });
-              } else if (event.data.type === 'mcp-auth-error') {
-                console.error('Auth error:', event.data.error);
-
-                // Clean up listeners and interval
-                if (popupCheckInterval) {
-                  clearInterval(popupCheckInterval);
-                }
-                window.removeEventListener('message', handleMessage);
-                setIsLoading(false);
-
-                onDeny();
-              }
-            };
-
-            window.addEventListener('message', handleMessage);
-
-            // Also check for popup close (fallback)
-            popupCheckInterval = setInterval(() => {
-              if (popup.closed) {
-                console.log('Popup closed without message');
-                clearInterval(popupCheckInterval!);
-                window.removeEventListener('message', handleMessage);
-                setIsLoading(false);
-              }
-            }, 500);
-          } else {
-            // Popup was blocked
-            console.error('Popup was blocked by the browser');
-            alert('Please allow popups for this site to connect your account.');
-            setIsLoading(false);
-          }
-        } catch (popupError) {
-          console.error('Error opening popup:', popupError);
-          alert('Failed to open authentication window. Please check your browser settings.');
+          console.log('Auth success, approving tool');
           setIsLoading(false);
+
+          // Approve the tool - connection already established in Redis
+          onApprove({
+            sessionId: authResult.sessionId || sessionId,
+          });
+        } catch (popupError) {
+          console.error('Authentication error:', popupError);
+          setIsLoading(false);
+
+          // Show user-friendly error message
+          const errorMessage = popupError instanceof Error ? popupError.message : 'Authentication failed';
+          if (errorMessage.includes('popup')) {
+            alert('Please allow popups for this site to connect your account.');
+          } else if (errorMessage.includes('cancelled')) {
+            console.log('User cancelled authentication');
+          } else {
+            alert(`Authentication failed: ${errorMessage}`);
+          }
+
+          onDeny();
         }
       } else {
         // No URL returned, connection successful without OAuth
