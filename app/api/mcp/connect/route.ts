@@ -75,20 +75,18 @@ export async function POST(request: NextRequest) {
     // Generate a unique session ID for this connection attempt
     const sessionId = nanoid();
 
-    // serverId is for database lookup (optional), separate from sessionId
-    const effectiveServerId = serverId || serverUrl.replace(/[^a-zA-Z0-9]/g, '_');
-
     let authUrl: string | null = null;
 
     // Create MCP client with redirect handler and state data
     const client = new MCPClient({
       serverUrl,
+      serverName,
       callbackUrl,
       onRedirect: (redirectUrl: string) => {
         authUrl = redirectUrl;
       },
       userId,
-      serverId: effectiveServerId,
+      serverId,
       sessionId,
       transportType,
       clientId,

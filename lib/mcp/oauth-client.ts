@@ -19,6 +19,7 @@ import {
 import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { RedisOAuthClientProvider, AgentsOAuthProvider } from './redis-oauth-client-provider';
 import { sessionStore } from './session-store';
+import { sanitizeServerLabel } from './utils';
 
 /**
  * Supported MCP transport types
@@ -102,11 +103,11 @@ export class MCPClient {
   }
 
   /**
-   * Ensure that the client, transport, and provider are correctly initialized.
+   * Initialize the client, transport, and OAuth provider.
    * This is necessary because in serverless environments, the client may be
    * recreated for each request and needs to be set up from stored state.
    */
-  private async ensureInitialized(): Promise<void> {
+  private async initialize(): Promise<void> {
     if (this.client && this.oauthProvider && this.transport) {
       return;
     }
@@ -228,7 +229,7 @@ export class MCPClient {
    * @throws {Error} For other connection errors
    */
   async connect(): Promise<void> {
-    await this.ensureInitialized();
+    await this.initialize();
     await this.attemptConnection();
   }
 
@@ -236,7 +237,7 @@ export class MCPClient {
    * Attempt to establish connection with the MCP server
    */
   private async attemptConnection(): Promise<void> {
-    await this.ensureInitialized();
+    await this.initialize();
 
     if (!this.client || !this.transport) {
       throw new Error('Client or transport not initialized');
@@ -247,8 +248,13 @@ export class MCPClient {
       await this.getValidTokens();
       await this.client.connect(this.transport);
 
-      // Connection successful, ensure session is saved as active
-      // await this.saveSession(true);
+      // Only save session if it doesn't exist yet (first-time registration)
+      // For reloads, the session already exists and we don't need to save again
+      const existingSession = await sessionStore.getSession(this.userId, this.sessionId);
+      if (!existingSession) {
+        console.log('[MCPClient] New connection - saving session');
+        await this.saveSession(true);
+      }
     } catch (error) {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
       if (error instanceof SDKUnauthorizedError ||
@@ -269,7 +275,7 @@ export class MCPClient {
    * @param authCode - Authorization code from OAuth callback
    */
   async finishAuth(authCode: string): Promise<void> {
-    await this.ensureInitialized();
+    await this.initialize();
 
     if (!this.oauthProvider || !this.transport) {
       throw new Error('OAuth provider or transport not initialized');
@@ -377,7 +383,7 @@ export class MCPClient {
    * @returns True if refresh was successful, false otherwise
    */
   async refreshToken(): Promise<boolean> {
-    await this.ensureInitialized();
+    await this.initialize();
 
     if (!this.oauthProvider) {
       console.error('[OAuth Client] Cannot refresh: OAuth provider not initialized');
@@ -445,7 +451,7 @@ export class MCPClient {
    */
   async getValidTokens(): Promise<boolean> {
     console.log('[OAuth Client] Checking token validity...');
-    await this.ensureInitialized();
+    await this.initialize();
 
     if (!this.oauthProvider) {
       console.error('[OAuth Client] Cannot get valid tokens: OAuth provider not initialized');
@@ -481,7 +487,7 @@ export class MCPClient {
    * Recreates client and transport without creating a new OAuth provider
    */
   async reconnect(): Promise<void> {
-    await this.ensureInitialized();
+    await this.initialize();
 
     if (!this.oauthProvider) {
       throw new Error('OAuth provider not initialized');
@@ -518,7 +524,7 @@ export class MCPClient {
   async clearSession(): Promise<void> {
     // Attempt to initialize to get the provider if we don't have it
     try {
-      await this.ensureInitialized();
+      await this.initialize();
     } catch (error) {
       console.warn('[MCPClient] Could not initialize during clearSession, proceeding with partial cleanup:', error);
     }
@@ -591,7 +597,7 @@ export class MCPClient {
   /**
    * Get additional data from the MCP server
    * Fetches server capabilities, prompts, resources, and resource templates
-   * 
+   *
    * @returns Combined server metadata including capabilities, prompts, resources, etc.
    */
   async getAdditionalData(): Promise<{
@@ -648,5 +654,74 @@ export class MCPClient {
       console.error('[getAdditionalData] Failed to retrieve additional data:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get MCP server configuration for all user sessions
+   * Automatically handles token refresh and returns ready-to-use server configs
+   *
+   * @param userId - User ID to fetch sessions for
+   * @returns Server configuration object keyed by sanitized server labels
+   */
+  static async getMcpServerConfig(userId: string): Promise<Record<string, any>> {
+    const mcpConfig: Record<string, any> = {};
+    const sessionIds = await sessionStore.getUserMcpSessions(userId);
+
+    for (const sessionId of sessionIds) {
+      try {
+        // Load session from Redis
+        const sessionData = await sessionStore.getSession(userId, sessionId);
+
+        // Validate session - remove if invalid or inactive
+        if (
+          !sessionData ||
+          !sessionData.active ||
+          !sessionData.userId ||
+          !sessionData.serverId ||
+          !sessionData.transportType ||
+          !sessionData.serverUrl
+        ) {
+          await sessionStore.removeSession(userId, sessionId);
+          continue;
+        }
+
+        // Get OAuth headers if session requires authentication
+        let headers: Record<string, string> | undefined;
+        try {
+          const client = new MCPClient({ userId, sessionId });
+          await client.initialize();
+
+          const hasValidTokens = await client.getValidTokens();
+          if (hasValidTokens && client.oauthProvider) {
+            const tokens = await client.oauthProvider.tokens();
+            if (tokens?.access_token) {
+              headers = { Authorization: `Bearer ${tokens.access_token}` };
+            }
+          }
+        } catch (error) {
+          console.warn(`[MCP] Failed to get OAuth tokens for ${sessionId}:`, error);
+        }
+
+        // Build server config
+        const label = sanitizeServerLabel(
+          sessionData.serverName || sessionData.serverId || 'server'
+        );
+
+        mcpConfig[label] = {
+          transport: sessionData.transportType,
+          url: sessionData.serverUrl,
+          ...(sessionData.serverName && {
+            serverName: sessionData.serverName,
+            serverLabel: label,
+          }),
+          ...(headers && { headers }),
+        };
+      } catch (error) {
+        await sessionStore.removeSession(userId, sessionId);
+        console.warn(`[MCP] Failed to process session ${sessionId}:`, error);
+      }
+    }
+
+    return mcpConfig;
   }
 }

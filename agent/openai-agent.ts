@@ -3,7 +3,7 @@ import { initiateMcpConnection } from '@/tool/initiate-mcp-connection';
 import { searchMcpServers } from '@/tool/search-mcp-servers';
 import { openai } from '@ai-sdk/openai';
 import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from 'ai';
-import { getMcpServerConfig } from '@/lib/mcp';
+import { MCPClient } from '@/lib/mcp';
 
 const INSTRUCTIONS = `
 You are MCP Assistant, an AI agent that helps users complete tasks by discovering and connecting to Model Context Protocol (MCP) servers.
@@ -40,7 +40,7 @@ export async function createMcpAgent(userId?: string) {
   const mcpServers: any[] = [];
 
   if (userId) {
-    const mcpConfig = await getMcpServerConfig(userId);
+    const mcpConfig = await MCPClient.getMcpServerConfig(userId);
     for (const [sessionId, config] of Object.entries(mcpConfig)) {
       mcpServers.push({
         serverLabel: config.serverLabel || sessionId,
