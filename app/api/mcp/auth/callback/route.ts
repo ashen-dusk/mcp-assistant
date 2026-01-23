@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MCPClient } from '@/lib/mcp/oauth-client';
-import { sessionStore } from '@/lib/mcp/session-store';
+import { MCPClient } from '@mcp-ts/redis/server'
 import { createClient } from "@/lib/supabase/server";
 import { getAppUrl } from '@/lib/url';
 export async function GET(request: NextRequest) {
@@ -65,7 +64,7 @@ async function handleCallback(request: NextRequest) {
       onRedirect: (url) => {
         console.log('[Callback] Redirect requested:', url);
       },
-      userId,
+      identity: userId,
       sessionId,
     });
 

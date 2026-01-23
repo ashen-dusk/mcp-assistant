@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ServerIcon } from '../common/ServerIcon';
-import { useMcpConnectionObservable } from '@/hooks/useMcpConnectionObservable';
-import type { ConnectionPhase } from '@/lib/mcp/connection-manager';
+import { useMcpStore } from '@/lib/stores/mcp-store';
 
 interface MCPConnectionApprovalProps {
   serverName: string;
@@ -19,24 +18,7 @@ interface MCPConnectionApprovalProps {
 /**
  * Get user-friendly status message for connection phase
  */
-function getStatusMessage(phase: ConnectionPhase): string {
-  switch (phase) {
-    case 'connecting':
-      return 'Connecting to server...';
-    case 'authenticating':
-      return 'Authenticating...';
-    case 'authenticated':
-      return 'Authentication successful...';
-    case 'discovering':
-      return 'Discovering tools...';
-    case 'connected':
-      return 'Connected!';
-    case 'error':
-      return 'Connection failed';
-    default:
-      return 'Connecting...';
-  }
-}
+
 
 export function MCPConnectionApproval({
   serverName,
@@ -49,29 +31,34 @@ export function MCPConnectionApproval({
 }: MCPConnectionApprovalProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const { connect, getPhase, isConnecting } = useMcpConnectionObservable({
-    onConnected: (event) => {
-      console.log('[MCPConnectionApproval] Connection completed:', event);
-      setSessionId(event.sessionId);
-      onApprove({ sessionId: event.sessionId });
-    },
-    onError: (event) => {
-      console.error('[MCPConnectionApproval] Connection error:', event);
-      onDeny();
-    },
-  });
+  // Use the global store for connections
+  const connectServer = useMcpStore(state => state.connect);
+  const disconnectServer = useMcpStore(state => state.disconnect);
+  const connections = useMcpStore(state => state.connections);
+  const activeConnections = useMcpStore(state => state.activeConnectionCount);
+  const getConnectionByServerId = useMcpStore(state => state.getConnectionByServerId);
 
-  const currentPhase = getPhase(serverId);
-  const connecting = isConnecting(serverId);
+  // Check if we already have a connection for this server
+  const existingConnection = getConnectionByServerId(serverId);
+  const isConnected = existingConnection?.connectionStatus === 'CONNECTED';
+  const isConnecting = existingConnection?.connectionStatus === 'CONNECTING' || existingConnection?.connectionStatus === 'VALIDATING';
+
+  // Watch for successful connection
+  const [hasTriggeredApprove, setHasTriggeredApprove] = useState(false);
+
+  if (isConnected && !hasTriggeredApprove) {
+    setHasTriggeredApprove(true);
+    onApprove({ sessionId: existingConnection!.sessionId });
+  }
 
   const handleConnect = async () => {
     try {
-      await connect({
-        serverId,
-        serverName,
-        serverUrl,
-        transport: transportType as 'sse' | 'streamable-http',
-      });
+      await connectServer({
+        id: serverId,
+        name: serverName,
+        url: serverUrl,
+        transport: transportType,
+      } as any); // Cast to McpServer type as needed
     } catch (error) {
       console.error('[MCPConnectionApproval] Connection failed:', error);
       onDeny();
@@ -99,7 +86,7 @@ export function MCPConnectionApproval({
           size="default"
           onClick={onDeny}
           variant="outline"
-          disabled={connecting}
+          disabled={isConnecting}
         >
           Deny
         </Button>
@@ -108,11 +95,11 @@ export function MCPConnectionApproval({
           onClick={handleConnect}
           variant="default"
           className="cursor-pointer gap-2"
-          disabled={connecting}
+          disabled={isConnecting}
         >
-          {connecting && currentPhase ? (
+          {isConnecting ? (
             <>
-              <span className="text-sm">{getStatusMessage(currentPhase)}</span>
+              <span className="text-sm">Connecting...</span>
               <svg
                 className="animate-spin"
                 xmlns="http://www.w3.org/2000/svg"

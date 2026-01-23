@@ -107,49 +107,28 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
     }
 
     const transport = extractTransport(server);
-    if (!transport) {
-      toast.error("Transport type not available for this server");
-      return;
-    }
-
-    if (UNSUPPORTED_TRANSPORTS.includes(transport)) {
-      toast.error(`Transport type '${transport}' is not supported`);
-      return;
-    }
+    // Removed strict transport check to allow library to handle defaults
+    // if (!transport) { ... }
 
     setIsConnecting(true);
     setConnectionError(null);
 
     try {
-      const sourceUrl = window.location.pathname;
+      const mcpActions = useMcpStore.getState().mcpActions;
+      if (!mcpActions) throw new Error("MCP Actions not initialized");
 
-      const response = await fetch("/api/mcp/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serverUrl: serverUrl,
-          callbackUrl: `${window.location.origin}/api/mcp/auth/callback`,
-          serverId: server.id,
-          serverName: server.title || server.name,
-          transportType: transport,
-          sourceUrl,
-        }),
+      const callbackUrl = `${window.location.origin}/api/mcp/auth/callback`;
+
+      await mcpActions.connect({
+        serverId: server.id,
+        serverName: server.title || server.name,
+        serverUrl: serverUrl,
+        transportType: transport,
+        callbackUrl
       });
 
-      const result = await response.json();
-
-      if (result.requiresAuth && result.authUrl) {
-        toast.success("Redirecting to authorization server...");
-        window.location.href = result.authUrl;
-        return;
-      }
-
-      if (result.success && result.sessionId) {
-        toast.success("Connected successfully!");
-        await validateAllSessions(); // Refresh after connect
-      } else {
-        throw new Error(result.error || "Failed to connect");
-      }
+      // library handles toast and state update via store sync
+      // await validateAllSessions(); // No longer needed
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to connect";
       setConnectionError(errorMsg);
@@ -157,34 +136,46 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
     } finally {
       setIsConnecting(false);
     }
-  }, [validateAllSessions]);
+  }, []);
 
   const disconnect = useCallback(async (server: ConnectableServer) => {
     const connection = getConnection(server.id);
-    if (!connection?.sessionId) {
-      toast.error("Connection information not found");
+    // connection lookup might need to be robust if server.id vs sessionId
+    // But getConnection(server.id) in this file looks up by serverId actually? 
+    // No, getConnection takes 'id' which is used as key in connections.
+    // In mcp-store, connections are keyed by sessionId.
+    // So getConnection(server.id) probably returns undefined if server.id is not sessionId.
+
+    // We should use getConnectionByServerId(server.id)
+    const storedConnection = useMcpStore.getState().getConnectionByServerId(server.id);
+
+    if (!storedConnection?.sessionId) {
+      // Try lookup by assuming server.id is sessionId (legacy behavior?)
+      const directConn = getConnection(server.id);
+      if (!directConn) {
+        toast.error("Connection information not found");
+        return;
+      }
+      try {
+        const mcpActions = useMcpStore.getState().mcpActions;
+        if (!mcpActions) throw new Error("MCP Actions not initialized");
+        await mcpActions.disconnect(directConn.sessionId);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to disconnect");
+      }
       return;
     }
 
     try {
-      const response = await fetch("/api/mcp/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: connection.sessionId }),
-      });
+      const mcpActions = useMcpStore.getState().mcpActions;
+      if (!mcpActions) throw new Error("MCP Actions not initialized");
 
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success("Disconnected successfully");
-        await validateAllSessions(); // Refresh after disconnect
-      } else {
-        throw new Error(result.error || "Failed to disconnect");
-      }
+      await mcpActions.disconnect(storedConnection.sessionId);
+      // await validateAllSessions();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to disconnect");
     }
-  }, [getConnection, validateAllSessions]);
+  }, []);
 
   // Backward compatibility for validateConnections
   const validateConnections = useCallback(
