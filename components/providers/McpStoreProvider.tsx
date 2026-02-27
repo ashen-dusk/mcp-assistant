@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useMcpStore, type McpStore } from '@/lib/stores/mcp-store';
-import { useMcp } from '@mcp-ts/redis/client';
+import { useMcp } from '@mcp-ts/sdk/client/react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 /**

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MCPClient } from '@mcp-ts/redis/server'
+import { MCPClient } from '@mcp-ts/sdk/server';
 import { createClient } from "@/lib/supabase/server";
 import { getAppUrl } from '@/lib/url';
 export async function GET(request: NextRequest) {
